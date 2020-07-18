@@ -7,8 +7,8 @@ endif
 all: exec
 
 test: exec s3dkt3m2.mtx circuit5M.mtx
-	./exec s3dkt3m2.mtx 10
-	./exec circuit5M.mtx 1
+	./exec s3dkt3m2.mtx 1000
+	ulimit -s unlimited; OMP_STACKSIZE=256M ./exec circuit5M.mtx 10
 
 clean:
 	rm *.o exec
