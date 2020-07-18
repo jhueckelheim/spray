@@ -13,12 +13,16 @@ Sparse Reduction Experiments
 ## Building and running an experiment
 
 After running
+
     make test
+
 navigate to the experiments folder to build and run the experiment, e.g.
+
     cd experiments/csr
     make test
 
 ## Building with Intel compilers
 
 For all make files, append a variable like so:
+
     make test CC=icc
