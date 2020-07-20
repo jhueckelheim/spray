@@ -53,6 +53,11 @@ int main (int argc,char **argv){
     int count = atoi(argv[2]);
     double time;
 
+    if(argc < 3) {
+      printf("Usage: ./exec <matrix_file_name> <num_iter>\n");
+      exit(1);
+    }
+
     // read matrix from matrix market file, convert to CSR format    
     coo<real> coo_data;
     csr<real> csr_data;
