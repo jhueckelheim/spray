@@ -78,6 +78,7 @@ BlockArray<contentType>::~BlockArray() {
     for(int i=0; i<nblocks; i++) {
       omp_destroy_lock(&(this->writelocks[i]));
     }
+    free(this->writelocks);
   }
 }
 
