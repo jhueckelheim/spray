@@ -1,14 +1,12 @@
 #ifndef BLOCKREDUCTION_HPP
 #define BLOCKREDUCTION_HPP
+#include <omp.h>
 
 template <typename contentType> class BlockArray {
   public:
     BlockArray();
-    BlockArray(int totalsize);
-    BlockArray(int totalsize, contentType* orig);
+    BlockArray(int totalsize, contentType* orig, bool useLocks=false);
     ~BlockArray();
-    void init(int totalsize);
-    void increment(int idx, contentType val);
     long getMemSize();
     static void ompInit(BlockArray<contentType> *init, BlockArray<contentType> *orig);
     static void ompReduce(BlockArray<contentType> *out, BlockArray<contentType> *in);
@@ -16,11 +14,14 @@ template <typename contentType> class BlockArray {
 
   private:
     contentType** blocks;
+    omp_lock_t* writelocks;
     int nblocks;
     int totalsize;
     long memsize;
-    int isOrig;
-    void createIfNeeded(int block);
+    bool initialized;
+    bool useLocks;
+    BlockArray<contentType>* orig; 
+    void createBlockIfNeeded(int block);
 };
 
 template class BlockArray<double>;

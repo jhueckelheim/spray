@@ -39,8 +39,8 @@ void spmvt_atomic(csr<real> csr_data, real* res, real* x) {
     }
 }
 
-void spmvt_blocks(csr<real> csr_data, real* res, real* x) {
-    BlockArray<real> x_p(csr_data.nc, x);
+void spmvt_blocks(csr<real> csr_data, real* res, real* x, bool useLocks = false) {
+    BlockArray<real> x_p(csr_data.nc, x, useLocks);
     #pragma omp parallel for reduction(+:x_p)
     for (int i = 0; i < csr_data.nr; i++) {
         for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
@@ -65,11 +65,11 @@ int main (int argc,char **argv){
     coocsr(coo_data, csr_data);
 
     // Initialize test vectors
-    real* res = new real[coo_data.nr];
+    real* res = (real*) malloc(coo_data.nr * sizeof(real));
     for (int i = 0; i < coo_data.nr; i++) {
         res[i] = 0;
     }
-    real* x = new real[coo_data.nc];
+    real* x = (real*) malloc(coo_data.nc * sizeof(real));
     for (int i = 0; i < coo_data.nc; i++) {
         x[i] = sin(i);
     }
@@ -117,13 +117,19 @@ int main (int argc,char **argv){
     }
     time = omp_get_wtime() - time;
     printf("sptmv_blockreduce time on %d threads: %f\n",omp_get_max_threads(),time);
+    time = omp_get_wtime();
+    for (int c = 0; c <count; c++){
+        spmvt_blocks(csr_data, res, x, true);
+    }
+    time = omp_get_wtime() - time;
+    printf("sptmv_blocklockreduce time on %d threads: %f\n",omp_get_max_threads(),time);
     
-    delete(csr_data.cols);
-    delete(csr_data.vals);
-    delete(csr_data.rptr);
-    delete(coo_data.cols);
-    delete(coo_data.vals);
-    delete(coo_data.rows);
-    delete(res);
-    delete(x);
+    free(csr_data.cols);
+    free(csr_data.vals);
+    free(csr_data.rptr);
+    free(coo_data.cols);
+    free(coo_data.vals);
+    free(coo_data.rows);
+    free(res);
+    free(x);
 }

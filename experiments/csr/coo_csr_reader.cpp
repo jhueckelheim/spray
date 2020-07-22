@@ -105,7 +105,7 @@ void coocsr(coo<T>& coo_data, csr<T>& csr_data) {
         csr_data.rptr[i] = 0;
     }
     for (int i=0; i<csr_data.nnz; i++) {
-        csr_data.rptr[coo_data.cols[i]]++;
+        csr_data.rptr[coo_data.rows[i]]++;
     }
 
     // Starting position for each row.
@@ -123,6 +123,9 @@ void coocsr(coo<T>& coo_data, csr<T>& csr_data) {
         int col = coo_data.cols[i];
         T val = coo_data.vals[i];
         int pos = csr_data.rptr[row];
+        if(pos >= csr_data.nnz) {
+          printf("HELP: found bad row pointer in row %d col %d entry %d\n",row,col,i);
+        }
         csr_data.vals[pos] = val;
         csr_data.cols[pos] = col;
         csr_data.rptr[row]++;
