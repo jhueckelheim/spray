@@ -157,7 +157,10 @@ BlockArray<contentType>::getMemSize() {
 //     + A block exists only in the input. Simply pass ownership of that block
 //       to the output.
 //     + A block exists in input and output. Actually do work here: Increment
-//       the output by the values in the input.
+//       the output by the values in the input. A small wrinkle here: The output
+//       block might actually be a block in the original array, in which case we
+//       must not attempt to free() this block, and can not assume that the
+//       output block is aligned.
 template <typename contentType> void
 BlockArray<contentType>::ompReduce(BlockArray<contentType> *out, BlockArray<contentType> *in) {
   assert(out->initialized && in->initialized);
