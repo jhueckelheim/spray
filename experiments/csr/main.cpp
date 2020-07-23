@@ -3,6 +3,9 @@
 #include <math.h>
 #include "coo_csr_reader.hpp"
 #include "blockReduction.hpp"
+#ifdef __INTEL_COMPILER
+#include <mkl_spblas.h>
+#endif
 using namespace std;
 
 #ifdef _DOUBLE
@@ -16,6 +19,14 @@ void spmv(csr<real> csr_data, real* res, real* x) {
     for (int i = 0; i < csr_data.nr; i++) {
         for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
             res[i] += csr_data.vals[k]*x[csr_data.cols[k]];
+        }
+    }
+}
+
+void spmvt_serial(csr<real> csr_data, real* res, real* x) {
+    for (int i = 0; i < csr_data.nr; i++) {
+        for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
+            x[csr_data.cols[k]] += csr_data.vals[k]*res[i];
         }
     }
 }
@@ -48,6 +59,16 @@ void spmvt_blocks(csr<real> csr_data, real* res, real* x, bool useLocks = false)
         }
     }
 }
+
+#ifdef __INTEL_COMPILER
+void spmvt_mkl(csr<double> csr_data, double* res, double* x) {
+    mkl_cspblas_dcsrgemv('t', csr_data.nr, csr_data.vals, csr_data.rptr, csr_data.cols, x, res);
+}
+
+void spmvt_mkl(csr<float> csr_data, float* res, float* x) {
+    mkl_cspblas_scsrgemv('t', csr_data.nr, csr_data.vals, csr_data.rptr, csr_data.cols, x, res);
+}
+#endif
 
 int main (int argc,char **argv){
     int count = atoi(argv[2]);
@@ -84,6 +105,17 @@ int main (int argc,char **argv){
     }
     time = omp_get_wtime() - time;
     printf("spmv time on %d threads: %f\n",omp_get_max_threads(),time);
+
+    // Sparse Transpose-Matrix Vector Product, sequential code
+    for (int c = 0; c <count; c++){
+        spmvt_serial(csr_data, res, x);
+    }
+    time = omp_get_wtime();
+    for (int c = 0; c <count; c++){
+        spmvt_serial(csr_data, res, x);
+    }
+    time = omp_get_wtime() - time;
+    printf("sptmv_serial time on %d threads: %f\n",omp_get_max_threads(),time);
     
     // Sparse Transpose-Matrix Vector Product using standard OpenMP Reduction
     for (int c = 0; c <count; c++){
@@ -124,6 +156,19 @@ int main (int argc,char **argv){
     time = omp_get_wtime() - time;
     printf("sptmv_blocklockreduce time on %d threads: %f\n",omp_get_max_threads(),time);
     
+#ifdef __INTEL_COMPILER
+    // Sparse Transpose-Matrix Vector Product using Intel MKL
+    for (int c = 0; c <count; c++){
+        spmvt_mkl(csr_data, res, x);
+    }
+    time = omp_get_wtime();
+    for (int c = 0; c <count; c++){
+        spmvt_mkl(csr_data, res, x);
+    }
+    time = omp_get_wtime() - time;
+    printf("sptmv_mkl time on %d threads: %f\n",omp_get_max_threads(),time);
+#endif
+
     free(csr_data.cols);
     free(csr_data.vals);
     free(csr_data.rptr);
