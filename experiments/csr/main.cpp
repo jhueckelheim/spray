@@ -62,11 +62,13 @@ void spmvt_blocks(csr<real> csr_data, real* res, real* x, bool useLocks = false)
 
 #ifdef __INTEL_COMPILER
 void spmvt_mkl(csr<double> csr_data, double* res, double* x) {
-    mkl_cspblas_dcsrgemv('t', csr_data.nr, csr_data.vals, csr_data.rptr, csr_data.cols, x, res);
+    char transpose = 't';
+    mkl_cspblas_dcsrgemv(&transpose, &csr_data.nr, csr_data.vals, csr_data.rptr, csr_data.cols, x, res);
 }
 
 void spmvt_mkl(csr<float> csr_data, float* res, float* x) {
-    mkl_cspblas_scsrgemv('t', csr_data.nr, csr_data.vals, csr_data.rptr, csr_data.cols, x, res);
+    char transpose = 't';
+    mkl_cspblas_scsrgemv(&transpose, &csr_data.nr, csr_data.vals, csr_data.rptr, csr_data.cols, x, res);
 }
 #endif
 

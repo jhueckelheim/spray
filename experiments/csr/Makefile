@@ -7,12 +7,12 @@ endif
 all: exec
 
 test: exec s3dkt3m2.mtx circuit5M.mtx debr.mtx
-	./exec s3dkt3m2.mtx 1000
-	ulimit -s unlimited; OMP_STACKSIZE=256M ./exec circuit5M.mtx 10
-	ulimit -s unlimited; OMP_STACKSIZE=256M ./exec debr.mtx 100
+	OMP_PLACES=sockets ./exec s3dkt3m2.mtx 1000
+	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec circuit5M.mtx 10
+	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec debr.mtx 100
 
 clean:
-	rm *.o exec s3dkt3m2.mtx.gz vxzf circuit5M.tar.gz debr.tar.gz
+	rm *.o exec s3dkt3m2.mtx.gz circuit5M.tar.gz debr.tar.gz
 	rm -rf debr
 	rm -rf circuit5M
 
