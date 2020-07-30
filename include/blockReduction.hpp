@@ -21,6 +21,7 @@ template <typename contentType> class BlockArray {
     bool initialized;
     bool useLocks;
     BlockArray<contentType>* orig; 
+    static void addBlock(contentType* out, contentType* in, int block, int totalsize, bool outAligned);
     void createBlockIfNeeded(int block);
 };
 

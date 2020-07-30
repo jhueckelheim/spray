@@ -4,8 +4,8 @@
 #include <assert.h>
 #include "blockReduction.hpp"
 
-// This is the only constructor that is actually useful for end users: It
-// creates a "special" BlockArray that actually just keeps a pointer to the
+// This is the only constructor that is useful for end users:
+// It creates a "special" BlockArray that actually just keeps a pointer to the
 // original data array, and behaves like a BlockArray with just one block
 // (containing the original data). In addition, it keeps an array of OpenMP
 // locks that are used by the threads to reserve write-access into blocks of the
@@ -88,24 +88,18 @@ BlockArray<contentType>::~BlockArray() {
 // possibilities: First, we attempt to get a lock for this block in the orignal
 // array held by the "special" BlockArray. If successful, this thread will
 // directly write into the output array. If unsuccessful, we allocate a
-// privatized block of data now. A small quirk: we only take a lock and write
-// into the original array if there is enough space for an entire block, to keep
-// the functions handling block operations simple and avoid complicated bounds
-// checks. If the problem size is not a multiple of the block size, the final
-// slice of memory at the end is always handled as a privatized block.
+// privatized block of data now.
 template <typename contentType> void
 BlockArray<contentType>::createBlockIfNeeded(int block) {
   assert(this->initialized);
   if(this->blocks[block] == NULL) {
-    if(this->orig->useLocks && (block+1)*BSIZE<=this->totalsize &&
-       omp_test_lock(&(this->orig->writelocks[block]))) {
-      // we got the lock and this is a complete block, set us up to write
-      // directly into the output array
+    if(this->orig->useLocks && omp_test_lock(&(this->orig->writelocks[block]))) {
+      // we got the lock, set us up to write directly into the output array
       this->blocks[block] = &(this->orig->blocks[0][block*BSIZE]);
     }
     else {
-      // we did not get the lock or the block is not complete, allocate a
-      // private block here and initialize it to zero.
+      // we did not get the lock, allocate a private block here and initialize
+      // it to zero.
       this->blocks[block] = (contentType*) aligned_alloc(64,BSIZE * sizeof(contentType));
       this->memsize+=BSIZE*sizeof(contentType);
       contentType *curOut = this->blocks[block];
@@ -137,30 +131,70 @@ BlockArray<contentType>::getMemSize() {
   return this->memsize;
 }
 
-// Another very important function: The actual reduction work. It iterates over
+// Perform the actual adding work. In the best case, this copies a whole block
+// and uses only aligned SIMD instructions. There is a special case for the
+// final block, which may be smaller than BSIZE, and for blocks that are
+// actually just pointers to the original array, wich may be unaligned.
+template <typename contentType> void
+BlockArray<contentType>::addBlock(contentType* curOut, contentType* curIn, int block, int totalsize, bool outAligned) {
+  int startIdx = block*BSIZE;
+  int j;
+  if(startIdx + BSIZE > totalsize) {
+    // This is the last block and we only use the part of it that
+    // actually corresponds to a part of the original array.
+    if(outAligned) {
+      #pragma omp simd aligned(curIn,curOut:64)
+      for(j=0; j<totalsize - startIdx; j++) {
+        curOut[j] += curIn[j];
+      }
+    }
+    else {
+      #pragma omp simd aligned(curIn:64)
+      for(j=0; j<totalsize - startIdx; j++) {
+        curOut[j] += curIn[j];
+      }
+    }
+  }
+  else {
+    // This is a normal block, we copy all of it.
+    if(outAligned) {
+      #pragma omp simd aligned(curIn,curOut:64)
+      for(j=0; j<BSIZE; j++) {
+        curOut[j] += curIn[j];
+      }
+    }
+    else {
+      #pragma omp simd aligned(curIn:64)
+      for(j=0; j<BSIZE; j++) {
+        curOut[j] += curIn[j];
+      }
+    }
+  }
+}
+
+// Another very important function: Initiate the reductions. It iterates over
 // the blocks in the input BlockArray, and merges them into the output
 // BlockArray. Several things can happen:
 //  - The output may be the "special" BlockArray that holds the original array.
-//    If this is the case, for each block in the input array, there are three
+//    If this is the case, for each block in the input array, there are two
 //    possibilities:
 //     + the block is actually just a pointer into the original array, because
 //       the current thread managed to get a lock on it. No work needs to be
 //       done.
-//     + the block must be added to the output, and there is enough room for
-//       this block in the output array. Perform this work.
-//     + the block must be added, but the original array does not have space
-//       for the entire block. This may happen only for the last block, if the
-//       problem size is not a multiple of the block size. In this case, copy
-//       only the relevant part of the block.
+//     + the block must be added to the output, perform this work.
 //  - The output may be just another BlockArray. There are three cases:
 //     + A block exists only in the output. No work needed.
 //     + A block exists only in the input. Simply pass ownership of that block
 //       to the output.
 //     + A block exists in input and output. Actually do work here: Increment
-//       the output by the values in the input. A small wrinkle here: The output
-//       block might actually be a block in the original array, in which case we
-//       must not attempt to free() this block, and can not assume that the
-//       output block is aligned.
+//       the output by the values in the input. A small wrinkle here: Either the
+//       input or the output block might actually be a block in the original
+//       array as a result of a thread having gotten the lock to it, in which
+//       case we must not attempt to free() this block, can not assume that the
+//       block is aligned, and we make sure that the output BlockArray will
+//       obtain the ownership of this original block, even if it belonged to the
+//       input BlockArray (which will fall out of scope after this and will no
+//       longer need the lock to that block anyways).
 template <typename contentType> void
 BlockArray<contentType>::ompReduce(BlockArray<contentType> *out, BlockArray<contentType> *in) {
   assert(out->initialized && in->initialized);
@@ -181,25 +215,7 @@ BlockArray<contentType>::ompReduce(BlockArray<contentType> *out, BlockArray<cont
         }
         else {
           // The block is a privatized block on this thread. We need to do work.
-          if(startIdx + BSIZE > out->totalsize) {
-            // This is the last block and we only use the part of it that
-            // actually corresponds to a part of the original array.
-            for(j=0; j<out->totalsize - startIdx; j++) {
-              out->blocks[0][startIdx+j] += in->blocks[i][j];
-            }
-          }
-          else {
-            // This is a normal block that needs to be taken completely, and
-            // added to the original array.
-            contentType *curOut = &(out->blocks[0][startIdx]);
-            contentType *curIn = in->blocks[i];
-            // We do not know if the original array was aligned, so curOut is
-            // not in the aligned clause.
-            #pragma omp simd aligned(curIn:64)
-            for(j=0; j<BSIZE; j++) {
-              curOut[j] += curIn[j];
-            }
-          }
+          addBlock(out->blocks[0]+startIdx, in->blocks[i], i, out->totalsize, false);
           // At this point we are done with this block, free it.
           free(in->blocks[i]);
         }
@@ -209,33 +225,38 @@ BlockArray<contentType>::ompReduce(BlockArray<contentType> *out, BlockArray<cont
   else {
     assert(out->nblocks == in->nblocks);
     // We are merging two BlockArrays, neither of which is the "special" one
-    // with the original array.
     for(i=0; i<in->nblocks; i++) {
       if(in->blocks[i] != NULL) {
         // We only need to do anything for blocks that are allocated in the
         // input.
         if(out->blocks[i] != NULL) {
-          // The block exists in input and output, add the input to the output
-          // and afterwards, free the block in the input as it is no longer
-          // needed.
+          // The block exists in input and output. Add them together, then
+          // free the input block as it is no longer needed.
           contentType *curOut = out->blocks[i];
           contentType *curIn = in->blocks[i];
-          if(in->orig->useLocks && in->blocks[i] == &(in->orig->blocks[0][i*BSIZE])) {
+          contentType *origBlock = &(in->orig->blocks[0][i*BSIZE]);
+          if(in->orig->useLocks && curIn == origBlock) {
+            // We are using the locking functionality, and the input block
+            // lives in the original array. In this case, we swap ownership of
+            // the blocks, since it is beneficial to keep the references and
+            // locks to the original array around so that we can do more useful
+            // work during the tree-shaped reduction phase, rather than
+            // deferring all work to the final merge on the master thread.
+            curOut = in->blocks[i];
+            curIn = out->blocks[i];
+            out->blocks[i] = in->blocks[i];
+          }
+          if(in->orig->useLocks && curOut == origBlock) {
             // We are using the locking functionality, and the output block
-            // lives in the original array and then might be unaligned. Also, no
-            // need to free this block, as it is part of the original array.
-            #pragma omp simd aligned(curIn:64)
-            for(j=0; j<BSIZE; j++) {
-              curOut[j] += curIn[j];
-            }
+            // lives in the original array. The output block might be unaligned.
+            addBlock(curOut, curIn, i, out->totalsize, false);
           }
           else {
-            #pragma omp simd aligned(curIn,curOut:64)
-            for(j=0; j<BSIZE; j++) {
-              curOut[j] += curIn[j];
-            }
-            free(in->blocks[i]);
+            // We are merging two privatized blocks, neither of them is part of
+            // the original array.
+            addBlock(curOut, curIn, i, out->totalsize, true);
           }
+          free(curIn);
         }
         else {
           // We have a block that only exists in the input, not in the output.
