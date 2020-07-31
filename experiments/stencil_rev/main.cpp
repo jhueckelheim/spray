@@ -1,6 +1,6 @@
 #include <iostream>
 #include <math.h>
-#include "BlockReduction.hpp"
+#include "blockReduction.hpp"
 
 typedef double real;
 
