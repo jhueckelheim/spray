@@ -4,6 +4,8 @@ else
 include ../../make_gnu.inc
 endif
 
+BLOCKSIZE=4096
+
 all: exec
 
 test: exec
@@ -15,5 +17,5 @@ test: exec
 clean:
 	rm *.o exec
 
-exec: main.cpp ../../build/blockReduction.o
-	$(CXX) $^ $(CXXF) -I../../include/ -o $@
+exec: main.cpp
+	$(CXX) $^ $(CXXF) -I../../include/ -DBSIZE=$(BLOCKSIZE) -o $@

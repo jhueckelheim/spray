@@ -54,7 +54,7 @@ void conv1d_b_atomic(int N, real *in, real *inb, real *out, real *outb, int S, r
 
 void conv1d_b_blockreduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
         wl, real *wr, real wc) {
-    BlockArray<real> inb_b(N,inb,true);
+    spray::BlockReduction<real> inb_b(N,inb,true);
     #pragma omp parallel for reduction(+:inb_b)
     for (int i = N-S-1; i > S-1; --i) {
         for (int j = S-1; j > -1; --j) {

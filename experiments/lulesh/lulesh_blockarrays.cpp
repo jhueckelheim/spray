@@ -507,9 +507,9 @@ void IntegrateStressForElems( Domain &domain,
 
   // loop over all elements
 
-   BlockArray<Real_t> fx_p(domain.numNode(), &(domain.fx(0)), true);
-   BlockArray<Real_t> fy_p(domain.numNode(), &(domain.fy(0)), true);
-   BlockArray<Real_t> fz_p(domain.numNode(), &(domain.fz(0)), true);
+   spray::BlockReduction<Real_t> fx_p(domain.numNode(), &(domain.fx(0)), true);
+   spray::BlockReduction<Real_t> fy_p(domain.numNode(), &(domain.fy(0)), true);
+   spray::BlockReduction<Real_t> fz_p(domain.numNode(), &(domain.fz(0)), true);
 #pragma omp parallel for firstprivate(numElem) reduction(+:fx_p,fy_p,fz_p)
   for( Index_t k=0 ; k<numElem ; ++k )
   {
@@ -729,9 +729,9 @@ void CalcFBHourglassForceForElems( Domain &domain,
 /*    compute the hourglass modes */
 
 
-   BlockArray<Real_t> fx_p(domain.numNode(), &(domain.fx(0)), true);
-   BlockArray<Real_t> fy_p(domain.numNode(), &(domain.fy(0)), true);
-   BlockArray<Real_t> fz_p(domain.numNode(), &(domain.fz(0)), true);
+   spray::BlockReduction<Real_t> fx_p(domain.numNode(), &(domain.fx(0)), true);
+   spray::BlockReduction<Real_t> fy_p(domain.numNode(), &(domain.fy(0)), true);
+   spray::BlockReduction<Real_t> fz_p(domain.numNode(), &(domain.fz(0)), true);
 #pragma omp parallel for firstprivate(numElem, hourg) reduction(+:fx_p,fy_p,fz_p)
    for(Index_t i2=0;i2<numElem;++i2){
       Real_t *fx_local, *fy_local, *fz_local ;

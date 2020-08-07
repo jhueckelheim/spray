@@ -7,19 +7,13 @@ endif
 BLOCKSIZE=4096
 TESTSIZE=16384
 
-all: build/blockReduction.o build/mapReduction.o build/btreeReduction.o 
+all: build/blockReduction.o
 
 clean:
 	rm build/* bin/*
 
 build/blockReduction.o: src/blockReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -c -DBSIZE=$(BLOCKSIZE) -o $@
-
-build/mapReduction.o: src/mapReduction.cpp
-	$(CXX) $^ $(CXXF) -Iinclude -c -o $@
-
-build/btreeReduction.o: src/mapReduction.cpp
-	$(CXX) $^ $(CXXF) -Iinclude -D_USE_BTREE -c -o $@
 
 #############################
 # Testing
@@ -49,11 +43,11 @@ bin/test_containeratomicreduce: build/main.o tests/test_containeratomicReduction
 bin/test_containerdensereduce: build/main.o tests/test_containerdenseReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -o $@
 
-bin/test_mapreduce: build/main.o tests/test_mapReduction.cpp build/mapReduction.o
+bin/test_mapreduce: build/main.o tests/test_mapReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -o $@
 
-bin/test_btreereduce: build/main.o tests/test_mapReduction.cpp build/btreeReduction.o
+bin/test_btreereduce: build/main.o tests/test_btreeReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -D_USE_BTREE -o $@
 
-bin/test_blockreduce: build/main.o tests/test_blockReduction.cpp build/blockReduction.o
+bin/test_blockreduce: build/main.o tests/test_blockReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -DBSIZE=$(BLOCKSIZE) -o $@

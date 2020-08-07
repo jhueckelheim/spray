@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     out[i] = 1.0;
   }
   time = omp_get_wtime();
-  memsize = testReduction(&(out[0]), NSIZE)/1024/1024;
+  memsize = testReduction(&(out[0]), NSIZE);
   time = omp_get_wtime() - time;
   for(i=0; i<NSIZE; i++) {
     checksum = (checksum + ((int)out[i])*(i%15485863))%179424673;

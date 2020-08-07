@@ -1,6 +1,6 @@
 # spreduce
 
-Sparse Reduction Experiments
+SPRAY - Sparse Reductions for ArraYs
 
 ## Building the object files for other projects
 
@@ -16,13 +16,12 @@ After running
 
     make test
 
-navigate to the experiments folder to build and run the experiment, e.g.
+and getting the same checksum for all tests, you may run some of the larger experiments, for example:
 
-    cd experiments/csr
-    make test
+    cd experiments/csr; make test
 
 ## Building with Intel compilers
 
-For all make files, append a variable like so:
+When making, append a variable like so:
 
     make test CC=icc

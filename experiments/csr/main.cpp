@@ -2,9 +2,7 @@
 #include <omp.h>
 #include <math.h>
 #include "coo_csr_reader.hpp"
-#include "blockReduction.hpp"
-#include "atomicReduction.hpp"
-#include "denseReduction.hpp"
+#include "spray.hpp"
 #ifdef __INTEL_COMPILER
 #include <mkl_spblas.h>
 #endif
@@ -53,7 +51,7 @@ void spmvt_atomic(csr<real> csr_data, real* res, real* x) {
 }
 
 void spmvt_blocks(csr<real> csr_data, real* res, real* x, bool useLocks = false) {
-    BlockArray<real> x_p(csr_data.nc, x, useLocks);
+    spray::BlockReduction<real> x_p(csr_data.nc, x, useLocks);
     #pragma omp parallel for reduction(+:x_p)
     for (int i = 0; i < csr_data.nr; i++) {
         for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
@@ -63,7 +61,7 @@ void spmvt_blocks(csr<real> csr_data, real* res, real* x, bool useLocks = false)
 }
 
 void spmvt_containeratomic(csr<real> csr_data, real* res, real* x) {
-    AtomicArray<real> x_p(x);
+    spray::AtomicReduction<real> x_p(x);
     #pragma omp parallel for reduction(+:x_p)
     for (int i = 0; i < csr_data.nr; i++) {
         for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
@@ -73,7 +71,27 @@ void spmvt_containeratomic(csr<real> csr_data, real* res, real* x) {
 }
 
 void spmvt_containerdense(csr<real> csr_data, real* res, real* x) {
-    DenseArray<real> x_p(csr_data.nc, x);
+    spray::DenseReduction<real> x_p(csr_data.nc, x);
+    #pragma omp parallel for reduction(+:x_p)
+    for (int i = 0; i < csr_data.nr; i++) {
+        for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
+            x_p[csr_data.cols[k]] += csr_data.vals[k]*res[i];
+        }
+    }
+}
+
+void spmvt_map(csr<real> csr_data, real* res, real* x) {
+    spray::STLMapReduction<real> x_p(x);
+    #pragma omp parallel for reduction(+:x_p)
+    for (int i = 0; i < csr_data.nr; i++) {
+        for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
+            x_p[csr_data.cols[k]] += csr_data.vals[k]*res[i];
+        }
+    }
+}
+
+void spmvt_btree(csr<real> csr_data, real* res, real* x) {
+    spray::BtreeReduction<real> x_p(x);
     #pragma omp parallel for reduction(+:x_p)
     for (int i = 0; i < csr_data.nr; i++) {
         for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
@@ -201,6 +219,28 @@ int main (int argc,char **argv){
     }
     time = omp_get_wtime() - time;
     printf("sptmv_containerdense time on %d threads: %f\n",omp_get_max_threads(),time);
+
+    // Sparse Transpose-Matrix Vector Product using STL Maps
+    for (int c = 0; c <count; c++){
+        spmvt_map(csr_data, res, x);
+    }
+    time = omp_get_wtime();
+    for (int c = 0; c <count; c++){
+        spmvt_map(csr_data, res, x);
+    }
+    time = omp_get_wtime() - time;
+    printf("sptmv_map time on %d threads: %f\n",omp_get_max_threads(),time);
+
+    // Sparse Transpose-Matrix Vector Product using Btree
+    for (int c = 0; c <count; c++){
+        spmvt_btree(csr_data, res, x);
+    }
+    time = omp_get_wtime();
+    for (int c = 0; c <count; c++){
+        spmvt_btree(csr_data, res, x);
+    }
+    time = omp_get_wtime() - time;
+    printf("sptmv_btree time on %d threads: %f\n",omp_get_max_threads(),time);
 
     
 #ifdef __INTEL_COMPILER

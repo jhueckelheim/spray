@@ -4,6 +4,8 @@ else
 include ../../make_gnu.inc
 endif
 
+BLOCKSIZE=4096
+
 all: exec
 
 test: exec s3dkt3m2.mtx circuit5M.mtx debr.mtx
@@ -30,8 +32,8 @@ debr.mtx:
 	tar vxzf debr.tar.gz
 	mv debr/debr.mtx .
 
-exec: mmio.o coo_csr_reader.o main.cpp ../../build/blockReduction.o
-	$(CXX) $^ $(CXXF) -I../../include -o $@
+exec: mmio.o coo_csr_reader.o main.cpp
+	$(CXX) $^ $(CXXF) -I../../include -DBSIZE=$(BLOCKSIZE) -o $@
 
 mmio.o: mmio.c
 	$(CC) $^ $(CF) -c -o $@
