@@ -4,57 +4,59 @@
 #include <stdlib.h>
 
 namespace spray {
-template <typename contentType> class DenseReduction {
+template <typename contentType, unsigned alignment = 256> class DenseReduction {
 public:
-  DenseReduction() { this->initialized = false; }
+  DenseReduction() {}
 
-  DenseReduction(int size, contentType *orig) {
-    this->content = orig;
-    this->initialized = true;
-    this->size = size;
-    this->memsize = 0;
-    this->isOrig = true;
-  }
+  DenseReduction(unsigned size, contentType *orig)
+      : content(orig), size(size) {}
 
   ~DenseReduction() {
-    if (!this->isOrig) {
+    if (!isOriginal())
       free(this->content);
-    }
   }
 
   long getMemSize() { return this->memsize; }
 
-  static void ompInit(DenseReduction<contentType> *init,
-                      DenseReduction<contentType> *orig) {
-    assert(orig->initialized);
-    init->initialized = true;
+  bool isOriginal() const { return isInitialized() && memsize == 0; }
+  bool isInitialized() const { return content; }
+
+  static void ompInit(DenseReduction<contentType> *__restrict__ init,
+                      DenseReduction<contentType> *__restrict__ orig) {
+    if (!init->isOriginal())
+      free(init->content);
+
+    assert(orig->isInitialized());
     init->size = orig->size;
     init->memsize = orig->size * sizeof(contentType);
-    init->content = (contentType *)malloc(init->memsize);
-    init->isOrig = false;
+    init->content = reinterpret_cast<contentType *>(
+        aligned_alloc(alignment, init->memsize));
   }
 
-  static void ompReduce(DenseReduction<contentType> *out,
-                        DenseReduction<contentType> *in) {
-    assert(out->initialized && in->initialized);
+  static void ompReduce(DenseReduction<contentType> *__restrict__ out,
+                        DenseReduction<contentType> *__restrict__ in) {
+    assert(out->isInitialized() && in->isInitialized());
     assert(out->size == in->size);
-    for (int i = 0; i < out->size; i++) {
-      out->content[i] += in->content[i];
-    }
     out->memsize += in->memsize;
+
+#pragma omp simd aligned(out->content, in->content : alignment)
+    for (int i = 0; i < out->size; i++)
+      out->content[i] += in->content[i];
   }
 
   contentType &operator[](int idx) {
-    assert(this->initialized);
+    assert(this->isInitialized());
     return this->content[idx];
   }
 
 private:
-  contentType *content;
-  bool initialized;
-  int size;
-  long memsize;
-  bool isOrig;
+  contentType *content = nullptr;
+
+  /// Size of the content.
+  unsigned size = 0;
+
+  /// Total memory size used by this reduction (tree).
+  unsigned memsize = 0;
 };
 
 #pragma omp declare reduction(+ : DenseReduction<double> : \
