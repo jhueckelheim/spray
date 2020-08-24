@@ -8,16 +8,25 @@
 #include <omp.h>
 
 namespace spray {
-  template <typename contentType>
-    using pendingScalar = std::pair<int, contentType>;
-  template <typename contentType>
-    using pendingDeque = std::deque<pendingScalar<contentType>>;
-  template <typename contentType>
-    using pending2Deque = std::deque<pendingDeque<contentType>*>;
-  template <typename contentType>
-    using pending2Map = std::map<int,pendingDeque<contentType>*>;
+  template <typename contentType, unsigned blocksize> class UpdateChunk {
+    public:
+      contentType* nextRef(int idx) {
+        if(top < blocksize) {
+          contentType* ret = &content[top];
+          content[top] = 0.0;
+          indices[top] = idx;
+          top++;
+          return ret;
+        }
+        else return nullptr;
+      }
+      contentType content[blocksize];
+      int indices[blocksize];
+      int top = 0;
+      UpdateChunk<contentType, blocksize>* next = nullptr;
+  };
 
-  template <typename contentType> class KeeperReduction {
+  template <typename contentType, unsigned blocksize = 256> class KeeperReduction {
     public:
       KeeperReduction() {
         this->initialized = false;
@@ -28,49 +37,49 @@ namespace spray {
         if(numThreads == -1) {
           this->numThreads = omp_get_max_threads();
         }
-        this->pendingUpdates = new pending2Deque<contentType>[this->numThreads];
         this->content = orig;
         this->initialized = true;
         this->size = size;
         this->memsize = 0;
         this->isOrig = true;
-        this->locks = new omp_lock_t[this->numThreads];
+        this->allIncomingUpdates = new UpdateChunk<contentType, blocksize>**[this->numThreads];
         for(int i=0; i<this->numThreads; i++) {
-          omp_init_lock(&(this->locks[i]));
+          this->allIncomingUpdates[i] = new UpdateChunk<contentType, blocksize>*[this->numThreads];
         }
       }
   
-      static void ompInit(KeeperReduction<contentType> *init, KeeperReduction<contentType> *orig) {
+      static void ompInit(KeeperReduction<contentType,blocksize> *init, KeeperReduction<contentType,blocksize> *orig) {
         assert(orig->initialized);
         init->initialized = true;
         init->size = orig->size;
         init->memsize = 0;
         init->isOrig = false;
-        init->pendingUpdates = orig->pendingUpdates;
         init->content = orig->content;
-        init->locks = orig->locks;
         init->numThreads = orig->numThreads;
+        init->allIncomingUpdates = orig->allIncomingUpdates;
+        init->myOutgoingUpdates = new UpdateChunk<contentType, blocksize>*[orig->numThreads];
       }
   
       ~KeeperReduction() {
         if(this->isOrig) {
-          delete[] this->pendingUpdates;
           for(int i=0; i<this->numThreads; i++) {
-            omp_destroy_lock(&(this->locks[i]));
+            delete[] this->allIncomingUpdates[i];
           }
-          delete(this->locks);
+          delete[] this->allIncomingUpdates;
         }
         else {
+          delete[] myOutgoingUpdates;
           #pragma omp barrier
-          auto myPendingUpdates = this->pendingUpdates[this->threadID];
-          auto end2d = myPendingUpdates.end();
-          for(auto it2d = myPendingUpdates.begin(); it2d != end2d; it2d++) {
-            auto curDeque = *it2d;
-            auto curEnd = curDeque->end();
-            for(auto it = curDeque->begin(); it != curEnd; it++) {
-              this->content[it->first] += it->second;
+          for(int i=0; i<this->numThreads; i++) {
+            auto myIncomingUpdates = this->allIncomingUpdates[this->threadID][i];
+            while(myIncomingUpdates) {
+              for(int i=0; i<myIncomingUpdates->top; i++) {
+                this->content[myIncomingUpdates->indices[i]] += myIncomingUpdates->content[i];
+              }
+              auto oldIncomingUpdates = myIncomingUpdates;
+              myIncomingUpdates = myIncomingUpdates->next;
+              delete oldIncomingUpdates;
             }
-            delete(curDeque);
           }
         }
       }
@@ -81,17 +90,19 @@ namespace spray {
           return this->content[idx];
         }
         else {
-          if(this->myContributions.find(owner) == this->myContributions.end()) {
-            this->myContributions[owner] = new pendingDeque<contentType>;
-            omp_set_lock(&(this->locks[this->threadID]));
-            this->pendingUpdates[this->threadID].push_back(this->myContributions[owner]);
-            omp_unset_lock(&(this->locks[this->threadID]));
+          if(!this->myOutgoingUpdates[owner]) {
+            auto newChunk = new UpdateChunk<contentType, blocksize>;
+            this->myOutgoingUpdates[owner] = newChunk;
+            this->allIncomingUpdates[owner][this->threadID] = newChunk;
           }
-          pendingScalar<contentType> neutral(idx, 0);
-          this->myContributions[owner]->push_back(neutral);
-          contentType& neutralContent = this->myContributions[owner]->back().second;
-          this->memsize += sizeof(pendingScalar<contentType>);
-          return neutralContent;
+          contentType* ret = this->myOutgoingUpdates[owner]->nextRef(idx);
+          if(!ret) {
+            auto newChunk = new UpdateChunk<contentType, blocksize>;
+            this->myOutgoingUpdates[owner]->next = newChunk;
+            this->myOutgoingUpdates[owner] = newChunk;
+            ret = this->myOutgoingUpdates[owner]->nextRef(idx);
+          }
+          return (*ret);
         }
       }
   
@@ -99,7 +110,7 @@ namespace spray {
         return this->memsize;
       }
   
-      static void ompReduce(KeeperReduction<contentType> *out, KeeperReduction<contentType> *in) {
+      static void ompReduce(KeeperReduction<contentType,blocksize> *out, KeeperReduction<contentType,blocksize> *in) {
         out->memsize += in->memsize;
       }
   
@@ -109,9 +120,8 @@ namespace spray {
       int size;
       long memsize;
       bool isOrig;
-      pending2Deque<contentType>* pendingUpdates;
-      pending2Map<contentType> myContributions;
-      omp_lock_t* locks;
+      UpdateChunk<contentType,blocksize>** myOutgoingUpdates;
+      UpdateChunk<contentType,blocksize>*** allIncomingUpdates;
       int numThreads;
       int threadID;
   };
