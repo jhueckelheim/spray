@@ -2,20 +2,21 @@
 #define KEEPERREDUCTION_HPP
 #include <assert.h>
 #include <stdlib.h>
-#include <utility>
-#include <deque>
-#include <map>
 #include <omp.h>
 
 namespace spray {
   template <typename contentType, unsigned blocksize> class UpdateChunk {
     public:
+      UpdateChunk() {
+        this->top = 0;
+        this->next = nullptr;
+      }
       contentType* nextRef(int idx) {
-        if(top < blocksize) {
-          contentType* ret = &content[top];
-          content[top] = 0.0;
-          indices[top] = idx;
-          top++;
+        if(this->top < blocksize) {
+          contentType* ret = &this->content[this->top];
+          this->content[this->top] = 0.0;
+          this->indices[this->top] = idx;
+          this->top++;
           return ret;
         }
         else return nullptr;
@@ -45,6 +46,9 @@ namespace spray {
         this->allIncomingUpdates = new UpdateChunk<contentType, blocksize>**[this->numThreads];
         for(int i=0; i<this->numThreads; i++) {
           this->allIncomingUpdates[i] = new UpdateChunk<contentType, blocksize>*[this->numThreads];
+          for(int j=0; j<this->numThreads; j++) {
+            this->allIncomingUpdates[i][j] = nullptr;
+          }
         }
       }
   
@@ -58,6 +62,9 @@ namespace spray {
         init->numThreads = orig->numThreads;
         init->allIncomingUpdates = orig->allIncomingUpdates;
         init->myOutgoingUpdates = new UpdateChunk<contentType, blocksize>*[orig->numThreads];
+        for(int i=0; i<orig->numThreads; i++) {
+          init->myOutgoingUpdates[i] = nullptr;
+        }
       }
   
       ~KeeperReduction() {
@@ -68,7 +75,6 @@ namespace spray {
           delete[] this->allIncomingUpdates;
         }
         else {
-          delete[] myOutgoingUpdates;
           #pragma omp barrier
           for(int i=0; i<this->numThreads; i++) {
             auto myIncomingUpdates = this->allIncomingUpdates[this->threadID][i];
@@ -81,6 +87,7 @@ namespace spray {
               delete oldIncomingUpdates;
             }
           }
+          delete[] myOutgoingUpdates;
         }
       }
   

@@ -69,7 +69,8 @@ void conv1d_b_keeperreduce(int N, real *in, real *inb, real *out, real *outb, in
         wl, real *wr, real wc) {
     spray::KeeperReduction<real> inb_b(N,inb);
     #pragma omp parallel for reduction(+:inb_b)
-    for (int i = N-S-1; i > S-1; --i) {
+    for(int i=S; i<N-S; i++) {
+    //for (int i = N-S-1; i > S-1; --i) {
         for (int j = S-1; j > -1; --j) {
             inb_b[i - j - 1] += wl[j]*outb[i];
             inb_b[i + j + 1] += wr[j]*outb[i];
@@ -99,7 +100,7 @@ void conv1d_b_repeat(int domainsize, real *domain_in, real *domain_inb, real *do
         conv1d_b_keeperreduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
         break;
       default:
-        std::cout<<"Unknown method, choose 1-4."<<std::endl;
+        std::cout<<"Unknown method, choose 1-5."<<std::endl;
     }
   }
 }
