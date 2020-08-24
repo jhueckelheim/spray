@@ -35,20 +35,20 @@ bin/test_atomicreduce: build/main.o tests/test_atomicReduction.cpp
 bin/test_ompreduce: build/main.o tests/test_ompReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -o $@
 
-bin/test_containeratomicreduce: build/main.o tests/test_containeratomicReduction.cpp include/atomicReduction.hpp
+bin/test_containeratomicreduce: build/main.o tests/test_containeratomicReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -o $@
 
-bin/test_containerdensereduce: build/main.o tests/test_containerdenseReduction.cpp include/denseReduction.hpp
+bin/test_containerdensereduce: build/main.o tests/test_containerdenseReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -o $@
 
-bin/test_mapreduce: build/main.o tests/test_mapReduction.cpp include/mapReduction.hpp
+bin/test_mapreduce: build/main.o tests/test_mapReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -o $@
 
-bin/test_btreereduce: build/main.o tests/test_btreeReduction.cpp include/mapReduction.hpp
+bin/test_btreereduce: build/main.o tests/test_btreeReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -D_USE_BTREE -o $@
 
-bin/test_blockreduce: build/main.o tests/test_blockReduction.cpp include/blockReduction.hpp
+bin/test_blockreduce: build/main.o tests/test_blockReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -DBSIZE=$(BLOCKSIZE) -o $@
 
-bin/test_keeperreduce: build/main.o tests/test_keeperReduction.cpp include/keeperReduction.hpp
+bin/test_keeperreduce: build/main.o tests/test_keeperReduction.cpp
 	$(CXX) $^ $(CXXF) -Iinclude -o $@
