@@ -48,13 +48,13 @@ private:
   contentType *orig;
   bool initialized;
 };
-
-#pragma omp declare reduction(+ : AtomicReduction<double> : \
-    AtomicReduction<double>::ompReduce(&omp_out, &omp_in))                         \
-    initializer (AtomicReduction<double>::ompInit(&omp_priv, &omp_orig))
-
-#pragma omp declare reduction(+ : AtomicReduction<float> : \
-    AtomicReduction<float>::ompReduce(&omp_out, &omp_in))                         \
-    initializer (AtomicReduction<float>::ompInit(&omp_priv, &omp_orig))
 } // namespace spray
+
+#pragma omp declare reduction(+ : spray::AtomicReduction<double> : \
+    spray::AtomicReduction<double>::ompReduce(&omp_out, &omp_in))                         \
+    initializer (spray::AtomicReduction<double>::ompInit(&omp_priv, &omp_orig))
+
+#pragma omp declare reduction(+ : spray::AtomicReduction<float> : \
+    spray::AtomicReduction<float>::ompReduce(&omp_out, &omp_in))                         \
+    initializer (spray::AtomicReduction<float>::ompInit(&omp_priv, &omp_orig))
 #endif

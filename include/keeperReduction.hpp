@@ -115,13 +115,12 @@ namespace spray {
       int numThreads;
       int threadID;
   };
-
-  #pragma omp declare reduction(+ : KeeperReduction<double> : \
-    KeeperReduction<double>::ompReduce(&omp_out, &omp_in))                         \
-    initializer (KeeperReduction<double>::ompInit(&omp_priv, &omp_orig))
-  
-  #pragma omp declare reduction(+ : KeeperReduction<float> : \
-    KeeperReduction<float>::ompReduce(&omp_out, &omp_in))                         \
-    initializer (KeeperReduction<float>::ompInit(&omp_priv, &omp_orig))
 }
+#pragma omp declare reduction(+ : spray::KeeperReduction<double> : \
+  spray::KeeperReduction<double>::ompReduce(&omp_out, &omp_in))                         \
+  initializer (spray::KeeperReduction<double>::ompInit(&omp_priv, &omp_orig))
+
+#pragma omp declare reduction(+ : spray::KeeperReduction<float> : \
+  spray::KeeperReduction<float>::ompReduce(&omp_out, &omp_in))                         \
+  initializer (spray::KeeperReduction<float>::ompInit(&omp_priv, &omp_orig))
 #endif

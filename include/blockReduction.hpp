@@ -283,13 +283,13 @@ private:
 
 template class BlockReduction<double>;
 template class BlockReduction<float>;
-
-#pragma omp declare reduction(+ : BlockReduction<double> : \
-    BlockReduction<double>::ompReduce(&omp_out, &omp_in))                         \
-    initializer (BlockReduction<double>::ompInit(&omp_priv, &omp_orig))
-
-#pragma omp declare reduction(+ : BlockReduction<float> : \
-    BlockReduction<float>::ompReduce(&omp_out, &omp_in))                         \
-    initializer (BlockReduction<float>::ompInit(&omp_priv, &omp_orig))
 } // namespace spray
+
+#pragma omp declare reduction(+ : spray::BlockReduction<double> : \
+    spray::BlockReduction<double>::ompReduce(&omp_out, &omp_in))                         \
+    initializer (spray::BlockReduction<double>::ompInit(&omp_priv, &omp_orig))
+
+#pragma omp declare reduction(+ : spray::BlockReduction<float> : \
+    spray::BlockReduction<float>::ompReduce(&omp_out, &omp_in))                         \
+    initializer (spray::BlockReduction<float>::ompInit(&omp_priv, &omp_orig))
 #endif

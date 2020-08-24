@@ -44,17 +44,17 @@ using BtreeReduction =
 
 template <typename contentType>
 using STLMapReduction = MapReduction<std::map<int, contentType>, contentType>;
-
-#pragma omp declare reduction(+ : BtreeReduction<double> : \
-    BtreeReduction<double>::ompReduce(&omp_out, &omp_in))
-
-#pragma omp declare reduction(+ : BtreeReduction<float> : \
-    BtreeReduction<float>::ompReduce(&omp_out, &omp_in))
-
-#pragma omp declare reduction(+ : STLMapReduction<double> : \
-    STLMapReduction<double>::ompReduce(&omp_out, &omp_in))
-
-#pragma omp declare reduction(+ : STLMapReduction<float> : \
-    STLMapReduction<float>::ompReduce(&omp_out, &omp_in))
 } // namespace spray
+
+#pragma omp declare reduction(+ : spray::BtreeReduction<double> : \
+    spray::BtreeReduction<double>::ompReduce(&omp_out, &omp_in))
+
+#pragma omp declare reduction(+ : spray::BtreeReduction<float> : \
+    spray::BtreeReduction<float>::ompReduce(&omp_out, &omp_in))
+
+#pragma omp declare reduction(+ : spray::STLMapReduction<double> : \
+    spray::STLMapReduction<double>::ompReduce(&omp_out, &omp_in))
+
+#pragma omp declare reduction(+ : spray::STLMapReduction<float> : \
+    spray::STLMapReduction<float>::ompReduce(&omp_out, &omp_in))
 #endif

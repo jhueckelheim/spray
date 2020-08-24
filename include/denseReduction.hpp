@@ -64,13 +64,13 @@ private:
   /// A flag marking the object pointing to the original (user-provided) data.
   bool original = false;
 };
-
-#pragma omp declare reduction(+ : DenseReduction<double> : \
-    DenseReduction<double>::ompReduce(&omp_out, &omp_in))                         \
-    initializer (DenseReduction<double>::ompInit(&omp_priv, &omp_orig))
-
-#pragma omp declare reduction(+ : DenseReduction<float> : \
-    DenseReduction<float>::ompReduce(&omp_out, &omp_in))                         \
-    initializer (DenseReduction<float>::ompInit(&omp_priv, &omp_orig))
 } // namespace spray
+
+#pragma omp declare reduction(+ : spray::DenseReduction<double> : \
+    spray::DenseReduction<double>::ompReduce(&omp_out, &omp_in))                         \
+    initializer (spray::DenseReduction<double>::ompInit(&omp_priv, &omp_orig))
+
+#pragma omp declare reduction(+ : spray::DenseReduction<float> : \
+    spray::DenseReduction<float>::ompReduce(&omp_out, &omp_in))                         \
+    initializer (spray::DenseReduction<float>::ompInit(&omp_priv, &omp_orig))
 #endif
