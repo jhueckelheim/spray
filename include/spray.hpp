@@ -4,4 +4,5 @@
 #include "atomicReduction.hpp"
 #include "denseReduction.hpp"
 #include "mapReduction.hpp"
+#include "keeperReduction.hpp"
 #endif
