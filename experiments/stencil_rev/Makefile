@@ -13,6 +13,7 @@ test: exec
 	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec 10000000 2 2 100
 	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec 10000000 2 3 100
 	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec 10000000 2 4 100
+	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec 10000000 2 5 100
 
 clean:
 	rm *.o exec

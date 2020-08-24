@@ -1,6 +1,6 @@
 #include <iostream>
 #include <math.h>
-#include "blockReduction.hpp"
+#include "spray.hpp"
 
 typedef double real;
 
@@ -65,6 +65,19 @@ void conv1d_b_blockreduce(int N, real *in, real *inb, real *out, real *outb, int
     }
 }
 
+void conv1d_b_keeperreduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::KeeperReduction<real> inb_b(N,inb);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
 void conv1d_b_repeat(int domainsize, real *domain_in, real *domain_inb, real *domain_out, real *domain_outb, int stencilsize, real *
         weightsl, real *weightsr, real weightc, int iters, int method) {
   for(int c=0; c<iters; c++) {
@@ -81,6 +94,9 @@ void conv1d_b_repeat(int domainsize, real *domain_in, real *domain_inb, real *do
         break;
       case 4:
         conv1d_b_blockreduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 5:
+        conv1d_b_keeperreduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
         break;
       default:
         std::cout<<"Unknown method, choose 1-4."<<std::endl;

@@ -100,6 +100,16 @@ void spmvt_btree(csr<real> csr_data, real* res, real* x) {
     }
 }
 
+void spmvt_keeper(csr<real> csr_data, real* res, real* x) {
+    spray::KeeperReduction<real> x_p(csr_data.nc, x);
+    #pragma omp parallel for reduction(+:x_p)
+    for (int i = 0; i < csr_data.nr; i++) {
+        for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
+            x_p[csr_data.cols[k]] += csr_data.vals[k]*res[i];
+        }
+    }
+}
+
 #ifdef __INTEL_COMPILER
 void spmvt_mkl(csr<double> csr_data, double* res, double* x) {
     char transpose = 't';
@@ -241,6 +251,17 @@ int main (int argc,char **argv){
     }
     time = omp_get_wtime() - time;
     printf("sptmv_btree time on %d threads: %f\n",omp_get_max_threads(),time);
+
+    // Sparse Transpose-Matrix Vector Product using Keeper Reduction
+    for (int c = 0; c <count; c++){
+        spmvt_keeper(csr_data, res, x);
+    }
+    time = omp_get_wtime();
+    for (int c = 0; c <count; c++){
+        spmvt_keeper(csr_data, res, x);
+    }
+    time = omp_get_wtime() - time;
+    printf("sptmv_keeper time on %d threads: %f\n",omp_get_max_threads(),time);
 
     
 #ifdef __INTEL_COMPILER
