@@ -44,8 +44,10 @@ namespace spray {
         this->memsize = 0;
         this->isOrig = true;
         this->allIncomingUpdates = new UpdateChunk<contentType, blocksize>**[this->numThreads];
+        auto upd = new UpdateChunk<contentType, blocksize>*[this->numThreads*this->numThreads];
         for(int i=0; i<this->numThreads; i++) {
-          this->allIncomingUpdates[i] = new UpdateChunk<contentType, blocksize>*[this->numThreads];
+          this->allIncomingUpdates[i] = &upd[i*this->numThreads];
+          #pragma omp simd
           for(int j=0; j<this->numThreads; j++) {
             this->allIncomingUpdates[i][j] = nullptr;
           }
@@ -69,9 +71,7 @@ namespace spray {
   
       ~KeeperReduction() {
         if(this->isOrig) {
-          for(int i=0; i<this->numThreads; i++) {
-            delete[] this->allIncomingUpdates[i];
-          }
+          delete[] this->allIncomingUpdates[0];
           delete[] this->allIncomingUpdates;
         }
         else {
