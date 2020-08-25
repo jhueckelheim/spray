@@ -14,7 +14,6 @@ namespace spray {
       contentType* nextRef(int idx) {
         if(this->top < blocksize) {
           contentType* ret = &this->content[this->top];
-          this->content[this->top] = 0.0;
           this->indices[this->top] = idx;
           this->top++;
           return ret;
@@ -25,6 +24,18 @@ namespace spray {
       int indices[blocksize];
       int top = 0;
       UpdateChunk<contentType, blocksize>* next = nullptr;
+  };
+
+  template <typename contentType> class UpdateOnceScalar {
+  public:
+    UpdateOnceScalar(contentType *val) { this->val = val; }
+  
+    void operator+=(contentType rhs) {
+      *(this->val) = rhs;
+    }
+  
+  private:
+    contentType *val;
   };
 
   template <typename contentType, unsigned blocksize = 256> class KeeperReduction {
@@ -64,6 +75,7 @@ namespace spray {
         init->numThreads = orig->numThreads;
         init->allIncomingUpdates = orig->allIncomingUpdates;
         init->myOutgoingUpdates = new UpdateChunk<contentType, blocksize>*[orig->numThreads];
+        #pragma omp simd
         for(int i=0; i<orig->numThreads; i++) {
           init->myOutgoingUpdates[i] = nullptr;
         }
@@ -91,10 +103,10 @@ namespace spray {
         }
       }
   
-      contentType& operator[](int idx) {
+      UpdateOnceScalar<contentType> operator[](int idx) {
         int owner = idx * this->numThreads / this->size;
         if(owner == this->threadID) {
-          return this->content[idx];
+          return UpdateOnceScalar<contentType>(this->content+idx);
         }
         else {
           if(!this->myOutgoingUpdates[owner]) {
@@ -109,7 +121,7 @@ namespace spray {
             this->myOutgoingUpdates[owner] = newChunk;
             ret = this->myOutgoingUpdates[owner]->nextRef(idx);
           }
-          return (*ret);
+          return UpdateOnceScalar<contentType>(ret);
         }
       }
   
