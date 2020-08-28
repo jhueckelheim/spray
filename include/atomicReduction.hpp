@@ -25,8 +25,6 @@ public:
     this->initialized = true;
   }
 
-  long getMemSize() { return 0; }
-
   static void ompInit(AtomicReduction<contentType> *init,
                       AtomicReduction<contentType> *orig) {
     assert(orig->initialized);

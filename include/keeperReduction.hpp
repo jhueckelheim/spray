@@ -41,7 +41,6 @@ namespace spray {
         this->content = orig;
         this->initialized = true;
         this->size = size;
-        this->memsize = 0;
         this->isOrig = true;
         this->allIncomingUpdates = new UpdateChunk<contentType, blocksize>**[this->numThreads];
         auto upd = new UpdateChunk<contentType, blocksize>*[this->numThreads*this->numThreads];
@@ -58,7 +57,6 @@ namespace spray {
         assert(orig->initialized);
         init->initialized = true;
         init->size = orig->size;
-        init->memsize = 0;
         init->isOrig = false;
         init->content = orig->content;
         init->numThreads = orig->numThreads;
@@ -113,19 +111,12 @@ namespace spray {
         }
       }
   
-      long getMemSize() {
-        return this->memsize;
-      }
-  
-      static void ompReduce(KeeperReduction<contentType,blocksize> *out, KeeperReduction<contentType,blocksize> *in) {
-        out->memsize += in->memsize;
-      }
+      static void ompReduce(KeeperReduction<contentType,blocksize> *out, KeeperReduction<contentType,blocksize> *in) { }
   
     private:
       contentType* content;
       bool initialized;
       int size;
-      long memsize;
       bool isOrig;
       UpdateChunk<contentType,blocksize>** myOutgoingUpdates;
       UpdateChunk<contentType,blocksize>*** allIncomingUpdates;

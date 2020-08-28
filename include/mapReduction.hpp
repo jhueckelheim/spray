@@ -10,8 +10,6 @@ template <typename mapType, typename contentType> struct MapReduction {
   MapReduction() {}
   MapReduction(contentType *orig) : denseContent(orig) {}
 
-  long getMemSize() { return mapContent.max_size(); }
-
   static void ompReduce(MapReduction<mapType, contentType> *out,
                         MapReduction<mapType, contentType> *in) {
     if (out->denseContent) {

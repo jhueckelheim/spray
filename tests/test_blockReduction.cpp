@@ -1,6 +1,6 @@
 #include "blockReduction.hpp"
 
-long testReduction(double* out, int n) {
+void testReduction(double* out, int n) {
   int i;
   spray::BlockReduction<double> arr_p(n, out);
   #pragma omp parallel for reduction(+:arr_p)
@@ -9,5 +9,4 @@ long testReduction(double* out, int n) {
     arr_p[i  ] += 2.0;
     arr_p[i+1] += 4.0;
   }
-  return arr_p.getMemSize();
 }
