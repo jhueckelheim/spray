@@ -1,11 +1,11 @@
 #default build suggestion of MPI + OPENMP with gcc on Livermore machines you might have to change the compiler name
-
+REDUCTIONSTYLE=LOCK # default is LOCK. Alternatives are BLOCK, ATOMIC, DENSE, KEEPER, BTREE, MAP.
 BLOCKSIZE=4096
 
 SHELL = /bin/sh
 .SUFFIXES: .cc .o
 
-LULESH_EXEC = lulesh2.0_blockarrays
+LULESH_EXEC = lulesh2.0_$(REDUCTIONSTYLE)
 
 MPI_INC = /opt/local/include/openmpi
 MPI_LIB = /opt/local/lib
@@ -26,7 +26,7 @@ SOURCES2.0 = \
 OBJECTS2.0 = $(SOURCES2.0:.cc=.o)
 
 #Default build suggestions with OpenMP for g++
-CXXFLAGS = $(CXXF) -DUSE_MPI=0 -I. -I../../include -DBSIZE=$(BLOCKSIZE)
+CXXFLAGS = $(CXXF) -DUSE_MPI=0 -I. -I../../include -DBSIZE=$(BLOCKSIZE) -D$(REDUCTIONSTYLE)
 LDFLAGS =  $(CXXF) -DUSE_MPI=0
 
 #Below are reasonable default flags for a serial build

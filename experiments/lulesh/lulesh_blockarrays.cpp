@@ -1,3 +1,28 @@
+#ifdef BTREE
+#define _REDUCTION_VAR(varname, size, original) spray::BtreeReduction<Real_t> varname (original);
+#else
+#ifdef BLOCK
+#define _REDUCTION_VAR(varname, size, original) spray::BlockReduction<Real_t> varname ( size , original , false);
+#else
+#ifdef ATOMIC
+#define _REDUCTION_VAR(varname, size, original) spray::AtomicReduction<Real_t> varname ( original );
+#else
+#ifdef KEEPER
+#define _REDUCTION_VAR(varname, size, original) spray::KeeperReduction<Real_t> varname ( size , original);
+#else
+#ifdef DENSE
+#define _REDUCTION_VAR(varname, size, original) spray::DenseReduction<Real_t> varname ( size , original);
+#else
+#ifdef MAP
+#define _REDUCTION_VAR(varname, size, original) spray::STLMapReduction<Real_t> varname ( original);
+#else
+#define _REDUCTION_VAR(varname, size, original) spray::BlockReduction<Real_t> varname ( size , original , true);
+#endif
+#endif
+#endif
+#endif
+#endif
+#endif
 /*
   This is a Version 2.0 MPI + OpenMP implementation of LULESH
 
@@ -160,7 +185,7 @@ Additional BSD Notice
 #endif
 
 #include "lulesh.h"
-#include "blockReduction.hpp"
+#include "spray.hpp"
 
 /* Work Routines */
 
@@ -507,9 +532,9 @@ void IntegrateStressForElems( Domain &domain,
 
   // loop over all elements
 
-   spray::BlockReduction<Real_t> fx_p(domain.numNode(), &(domain.fx(0)), true);
-   spray::BlockReduction<Real_t> fy_p(domain.numNode(), &(domain.fy(0)), true);
-   spray::BlockReduction<Real_t> fz_p(domain.numNode(), &(domain.fz(0)), true);
+   _REDUCTION_VAR(fx_p, domain.numNode(), &(domain.fx(0)))
+   _REDUCTION_VAR(fy_p, domain.numNode(), &(domain.fy(0)))
+   _REDUCTION_VAR(fz_p, domain.numNode(), &(domain.fz(0)))
 #pragma omp parallel for firstprivate(numElem) reduction(+:fx_p,fy_p,fz_p)
   for( Index_t k=0 ; k<numElem ; ++k )
   {
@@ -729,9 +754,9 @@ void CalcFBHourglassForceForElems( Domain &domain,
 /*    compute the hourglass modes */
 
 
-   spray::BlockReduction<Real_t> fx_p(domain.numNode(), &(domain.fx(0)), true);
-   spray::BlockReduction<Real_t> fy_p(domain.numNode(), &(domain.fy(0)), true);
-   spray::BlockReduction<Real_t> fz_p(domain.numNode(), &(domain.fz(0)), true);
+   _REDUCTION_VAR(fx_p, domain.numNode(), &(domain.fx(0)))
+   _REDUCTION_VAR(fy_p, domain.numNode(), &(domain.fy(0)))
+   _REDUCTION_VAR(fz_p, domain.numNode(), &(domain.fz(0)))
 #pragma omp parallel for firstprivate(numElem, hourg) reduction(+:fx_p,fy_p,fz_p)
    for(Index_t i2=0;i2<numElem;++i2){
       Real_t *fx_local, *fy_local, *fz_local ;
