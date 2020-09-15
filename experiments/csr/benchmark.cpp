@@ -254,7 +254,6 @@ static void BM_spmvt_mkl_ie(benchmark::State& state, char* mfilename) {
     BENCHMARK_CAPTURE(BM_spmvt_serial, matname, matfile)->Arg(1)->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_omp, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmv, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_serial, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_omp, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_atomic, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_blocks, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
