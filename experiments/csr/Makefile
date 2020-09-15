@@ -13,6 +13,12 @@ test: exec s3dkt3m2.mtx circuit5M.mtx debr.mtx
 	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec circuit5M.mtx 10
 	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec debr.mtx 100
 
+benchmark: benchmark.cpp mmio.o coo_csr_reader.o
+	$(CXX) $^ -isystem ../benchmark/include -L../benchmark/build/src -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -o $@
+
+runtimes: benchmark
+	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./benchmark --benchmark_format=json --benchmark_repetitions=10 > timings.json
+
 clean:
 	rm *.o exec s3dkt3m2.mtx.gz circuit5M.tar.gz debr.tar.gz
 	rm -rf debr
