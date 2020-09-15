@@ -14,6 +14,7 @@ namespace spray {
       contentType* nextRef(int idx) {
         if(this->top < blocksize) {
           contentType* ret = &this->content[this->top];
+          this->content[this->top] = 0.0;
           this->indices[this->top] = idx;
           this->top++;
           return ret;
@@ -24,18 +25,6 @@ namespace spray {
       int indices[blocksize];
       int top = 0;
       UpdateChunk<contentType, blocksize>* next = nullptr;
-  };
-
-  template <typename contentType> class UpdateOnceScalar {
-  public:
-    UpdateOnceScalar(contentType *val) { this->val = val; }
-  
-    void operator+=(contentType rhs) {
-      *(this->val) = rhs;
-    }
-  
-  private:
-    contentType *val;
   };
 
   template <typename contentType, unsigned blocksize = 256> class KeeperReduction {
@@ -52,7 +41,6 @@ namespace spray {
         this->content = orig;
         this->initialized = true;
         this->size = size;
-        this->memsize = 0;
         this->isOrig = true;
         this->allIncomingUpdates = new UpdateChunk<contentType, blocksize>**[this->numThreads];
         auto upd = new UpdateChunk<contentType, blocksize>*[this->numThreads*this->numThreads];
@@ -69,13 +57,11 @@ namespace spray {
         assert(orig->initialized);
         init->initialized = true;
         init->size = orig->size;
-        init->memsize = 0;
         init->isOrig = false;
         init->content = orig->content;
         init->numThreads = orig->numThreads;
         init->allIncomingUpdates = orig->allIncomingUpdates;
         init->myOutgoingUpdates = new UpdateChunk<contentType, blocksize>*[orig->numThreads];
-        #pragma omp simd
         for(int i=0; i<orig->numThreads; i++) {
           init->myOutgoingUpdates[i] = nullptr;
         }
@@ -103,10 +89,10 @@ namespace spray {
         }
       }
   
-      UpdateOnceScalar<contentType> operator[](int idx) {
+      contentType& operator[](int idx) {
         int owner = idx * this->numThreads / this->size;
         if(owner == this->threadID) {
-          return UpdateOnceScalar<contentType>(this->content+idx);
+          return this->content[idx];
         }
         else {
           if(!this->myOutgoingUpdates[owner]) {
@@ -121,23 +107,16 @@ namespace spray {
             this->myOutgoingUpdates[owner] = newChunk;
             ret = this->myOutgoingUpdates[owner]->nextRef(idx);
           }
-          return UpdateOnceScalar<contentType>(ret);
+          return (*ret);
         }
       }
   
-      long getMemSize() {
-        return this->memsize;
-      }
-  
-      static void ompReduce(KeeperReduction<contentType,blocksize> *out, KeeperReduction<contentType,blocksize> *in) {
-        out->memsize += in->memsize;
-      }
+      static void ompReduce(KeeperReduction<contentType,blocksize> *out, KeeperReduction<contentType,blocksize> *in) { }
   
     private:
       contentType* content;
       bool initialized;
       int size;
-      long memsize;
       bool isOrig;
       UpdateChunk<contentType,blocksize>** myOutgoingUpdates;
       UpdateChunk<contentType,blocksize>*** allIncomingUpdates;

@@ -18,14 +18,12 @@ public:
   BlockReduction(int totalsize, contentType *orig, bool useLocks = false) {
     int nblocks = (totalsize - 1) / BSIZE + 1;
     this->blocks = (contentType **)malloc(sizeof(contentType *));
-    this->memsize = sizeof(contentType *);
     if (this->blocks == NULL) {
       printf("Failed to alloc blocks.\n");
       exit(1);
     }
     if (useLocks) {
       this->writelocks = (omp_lock_t *)malloc(nblocks * sizeof(omp_lock_t));
-      this->memsize += nblocks * sizeof(omp_lock_t);
       if (this->writelocks == NULL) {
         printf("Failed to alloc %d writelocks.\n", nblocks);
         exit(1);
@@ -63,14 +61,6 @@ public:
     }
   }
 
-  // Function to obtain the peak memory consumption of this BlockReduction. If
-  // this is called after the reduction is completed, it will instead report the
-  // overall memory consumption on all threads combined.
-  long getMemSize() {
-    assert(this->initialized);
-    return this->memsize;
-  }
-
   // This initialization sets up the `init` object and connects it to the
   // "special" BlockReduction `orig` that wraps the original data. The `init`
   // object allocates a list of pointers to blocks, but leaves the individual
@@ -81,7 +71,6 @@ public:
     init->nblocks = (totalsize - 1) / BSIZE + 1;
     init->blocks =
         (contentType **)malloc(init->nblocks * sizeof(contentType *));
-    init->memsize = init->nblocks * sizeof(contentType *);
     if (init->blocks == NULL) {
       printf("Failed to alloc blocks.\n");
       exit(1);
@@ -191,7 +180,6 @@ public:
         }
       }
     }
-    out->memsize += in->memsize;
   }
 
   // Array index operator. If the array index lives in a block that does not
@@ -209,7 +197,6 @@ private:
   omp_lock_t *writelocks;
   int nblocks;
   int totalsize;
-  long memsize;
   bool initialized;
   bool useLocks;
   BlockReduction<contentType> *orig;
@@ -270,7 +257,6 @@ private:
         // it to zero.
         this->blocks[block] =
             (contentType *)aligned_alloc(64, BSIZE * sizeof(contentType));
-        this->memsize += BSIZE * sizeof(contentType);
         contentType *curOut = this->blocks[block];
 #pragma omp simd aligned(curOut : 64)
         for (int j = 0; j < BSIZE; j++) {

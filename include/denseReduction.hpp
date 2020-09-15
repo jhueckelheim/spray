@@ -16,24 +16,20 @@ public:
       free(this->content);
   }
 
-  long getMemSize() { return this->memsize; }
-
   bool isInitialized() const { return content; }
 
   static void ompInit(DenseReduction<contentType> *__restrict__ init,
                       DenseReduction<contentType> *__restrict__ orig) {
     assert(orig->isInitialized());
     init->size = orig->size;
-    init->memsize = orig->size * sizeof(contentType);
     init->content = reinterpret_cast<contentType *>(
-        aligned_alloc(alignment, init->memsize));
+        aligned_alloc(alignment, orig->size * sizeof(contentType)));
   }
 
   static void ompReduce(DenseReduction<contentType> *__restrict__ out,
                         DenseReduction<contentType> *__restrict__ in) {
     assert(out->isInitialized() && in->isInitialized());
     assert(out->size == in->size);
-    out->memsize += in->memsize;
     contentType* outc = out->content;
     contentType* inc = in->content;
     if(out->original) {
@@ -57,9 +53,6 @@ private:
 
   /// Size of the content.
   unsigned size = 0;
-
-  /// Total memory size used by this reduction (tree).
-  unsigned memsize = 0;
 
   /// A flag marking the object pointing to the original (user-provided) data.
   bool original = false;
