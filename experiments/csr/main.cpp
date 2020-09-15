@@ -121,22 +121,32 @@ void spmvt_mkl(csr<float> csr_data, float* res, float* x) {
     mkl_cspblas_scsrgemv(&transpose, &csr_data.nr, csr_data.vals, csr_data.rptr, csr_data.cols, x, res);
 }
 
-void spmvt_mkl_ie(csr<float> csr_data, double* res, double* x) {
-    sparse_matrix_t* A;
+void spmvt_mkl_ie(csr<double> csr_data, double* res, double* x) {
+    sparse_matrix_t A;
     matrix_descr descr;
-    mkl_sparse_d_create_csr(A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
-    mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
-    mkl_sparse_optimize(A);
-    mkl_sparse_d_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, res);
+    descr.type = SPARSE_MATRIX_TYPE_GENERAL;
+    if(SPARSE_STATUS_SUCCESS != mkl_sparse_d_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals) ||
+       SPARSE_STATUS_SUCCESS != mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000) ||
+       SPARSE_STATUS_SUCCESS != mkl_sparse_optimize(A) ||
+       SPARSE_STATUS_SUCCESS != mkl_sparse_d_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res) ||
+       SPARSE_STATUS_SUCCESS != mkl_sparse_destroy(A)) {
+        printf("Error in MKL I/E\n");
+        exit(-1);
+    }
 }
 
 void spmvt_mkl_ie(csr<float> csr_data, float* res, float* x) {
-    sparse_matrix_t* A;
+    sparse_matrix_t A;
     matrix_descr descr;
-    mkl_sparse_s_create_csr(A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
-    mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
-    mkl_sparse_optimize(A);
-    mkl_sparse_s_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, res);
+    descr.type = SPARSE_MATRIX_TYPE_GENERAL;
+    if(SPARSE_STATUS_SUCCESS != mkl_sparse_s_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals) ||
+       SPARSE_STATUS_SUCCESS != mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000) ||
+       SPARSE_STATUS_SUCCESS != mkl_sparse_optimize(A) ||
+       SPARSE_STATUS_SUCCESS != mkl_sparse_s_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res) ||
+       SPARSE_STATUS_SUCCESS != mkl_sparse_destroy(A)) {
+        printf("Error in MKL I/E\n");
+        exit(-1);
+    }
 }
 
 #endif
