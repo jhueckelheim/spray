@@ -120,6 +120,25 @@ void spmvt_mkl(csr<float> csr_data, float* res, float* x) {
     char transpose = 't';
     mkl_cspblas_scsrgemv(&transpose, &csr_data.nr, csr_data.vals, csr_data.rptr, csr_data.cols, x, res);
 }
+
+void spmvt_mkl_ie(csr<float> csr_data, double* res, double* x) {
+    sparse_matrix_t* A;
+    matrix_descr descr;
+    mkl_sparse_d_create_csr(A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
+    mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
+    mkl_sparse_optimize(A);
+    mkl_sparse_d_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, res);
+}
+
+void spmvt_mkl_ie(csr<float> csr_data, float* res, float* x) {
+    sparse_matrix_t* A;
+    matrix_descr descr;
+    mkl_sparse_s_create_csr(A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
+    mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
+    mkl_sparse_optimize(A);
+    mkl_sparse_s_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, res);
+}
+
 #endif
 
 int main (int argc,char **argv){
@@ -275,6 +294,17 @@ int main (int argc,char **argv){
     }
     time = omp_get_wtime() - time;
     printf("sptmv_mkl time on %d threads: %f\n",omp_get_max_threads(),time);
+
+    // Sparse Transpose-Matrix Vector Product using Intel MKL
+    for (int c = 0; c <count; c++){
+        spmvt_mkl_ie(csr_data, res, x);
+    }
+    time = omp_get_wtime();
+    for (int c = 0; c <count; c++){
+        spmvt_mkl_ie(csr_data, res, x);
+    }
+    time = omp_get_wtime() - time;
+    printf("sptmv_mkl_ie time on %d threads: %f\n",omp_get_max_threads(),time);
 #endif
 
     free(csr_data.cols);
