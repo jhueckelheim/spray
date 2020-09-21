@@ -21,7 +21,7 @@ Conceptually, this loop performs a sum-reduction to the elements in `x`, so we m
         }
     }
 
-However, the OpenMP standard requires the compiler to implement this in an inefficient way, by initializing a copy of the _entire_ array on each thread, despite the fact that each thread might only update a small part of the output array. All these private copies must be initialized and eventually added together, resulting in wasted memory space and bandwidth. Worse, still, is that the amount of wasted memory actually _increases_ with the number of threads, and running the above program on a system with more cores will actually slow you down.
+However, the OpenMP standard requires the compiler to implement this in an inefficient way, by initializing a copy of the _entire_ array on each thread, despite the fact that each thread might only update a small part of the output array. All these private copies must be initialized and eventually added together, resulting in wasted memory space and bandwidth. Worse, still, is that the amount of wasted memory _increases_ with the number of threads, and running the above program on a system with more cores will actually slow you down.
 
 SPRAY is a header-only library that provides more appropriate strategies for reductions on large arrays, particularly in cases where each thread only updates a portion of the array. SPRAY allows threads to update overlapping indices of the output array at the same time, without creating complete private copies of the entire array. Instead, SPRAY uses a mix of small privatized data buffers, locks, and atomic updates to ensure that all updates to the output are eventually committed to the result.
 
