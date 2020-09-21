@@ -1,6 +1,6 @@
-# spreduce
+# SPRAY
 
-SPRAY - Sparse Reductions for ArraYs
+Sparse Reductions for ArraYs
 
 ## Usage
 
