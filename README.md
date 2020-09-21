@@ -25,10 +25,10 @@ However, the OpenMP standard requires the compiler to implement this in an ineff
 
 SPRAY is a header-only library that provides more appropriate strategies for reductions on large arrays, particularly in cases where each thread only updates a portion of the array. SPRAY allows threads to update overlapping indices of the output array at the same time, without creating complete private copies of the entire array. Instead, SPRAY uses a mix of small privatized data buffers, locks, and atomic updates to ensure that all updates to the output are eventually committed to the result.
 
-To use it, all you have to do is to include the `spray.hpp` header file, pass your output array to a SPRAY constructor, and use the OpenMP reduction clause on it, like so:
+To use it, all you have to do is include the `spray.hpp` header file, pass the output array to a SPRAY constructor, and use the OpenMP reduction clause on it, like so:
 
     #include "spray.hpp"
-    spray::AtomicReduction<real> x_p(x);
+    spray::AtomicReduction<double> x_p(x);
     #pragma omp parallel for reduction(+:x_p)
     for (int i = 0; i < csr_data.nr; i++) {
         for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
