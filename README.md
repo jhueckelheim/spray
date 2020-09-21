@@ -27,6 +27,7 @@ SPRAY is a header-only library that provides more appropriate strategies for red
 
 To use it, all you have to do is to include the `spray.hpp` header file, pass your output array to a SPRAY constructor, and use the OpenMP reduction clause on it, like so:
 
+    #include "spray.hpp"
     spray::AtomicReduction<real> x_p(x);
     #pragma omp parallel for reduction(+:x_p)
     for (int i = 0; i < csr_data.nr; i++) {
