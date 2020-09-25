@@ -268,7 +268,7 @@ static void BM_spmvt_mkl_ie(benchmark::State& state, char* mfilename) {
 #define threadcounts {1,2,4,8,16,28,56}
 
 BM_MAT(s3dkt3m2, "s3dkt3m2.mtx")
-BM_MAT(circuit5M, "circuit5M.mtx")
+//BM_MAT(circuit5M, "circuit5M.mtx")
 BM_MAT(debr, "debr.mtx")
 
 BENCHMARK_MAIN();

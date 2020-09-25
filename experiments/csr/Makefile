@@ -16,8 +16,8 @@ test: exec s3dkt3m2.mtx circuit5M.mtx debr.mtx
 benchmark: benchmark.cpp mmio.o coo_csr_reader.o
 	$(CXX) $^ -isystem ../benchmark/include -L../benchmark/build/src -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -o $@
 
-runtimes.csv: benchmark
-	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./benchmark --benchmark_format=json --benchmark_repetitions=10 > timings.json
+timings.csv: benchmark
+	ulimit -s unlimited; OMP_STACKSIZE=1024M OMP_PLACES=sockets ./benchmark --benchmark_format=json --benchmark_repetitions=10 > timings.json
 	python filtertimes.py timings.json > timings.csv
 
 clean:
