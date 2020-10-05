@@ -251,24 +251,29 @@ static void BM_spmvt_mkl_ie(benchmark::State& state, char* mfilename) {
 #endif
 
 #define BM_MAT(matname, matfile) \
-    BENCHMARK_CAPTURE(BM_spmvt_serial, matname, matfile)->Arg(1)->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_omp, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmv, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_omp, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_atomic, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_blocks, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_locks, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_catomic, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_cdense, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_map, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_btree, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_keeper, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
+    BENCHMARK_CAPTURE(BM_spmvt_keeper, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime();
+
+#define BM_MAT_MKL(matname, matfile) \
     BENCHMARK_CAPTURE(BM_spmvt_mkl, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_mkl_ie, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime();
-#define threadcounts {1,2,4,8,16,28,56}
 
-BM_MAT(s3dkt3m2, "s3dkt3m2.mtx")
+//#define threadcounts {1,2,4,8,16,28,56}
+#define threadcounts {2}
+
+//BM_MAT(s3dkt3m2, "s3dkt3m2.mtx")
 //BM_MAT(circuit5M, "circuit5M.mtx")
 BM_MAT(debr, "debr.mtx")
+
+#ifdef __INTEL_COMPILER
+BM_MAT_MKL(s3dkt3m2, "s3dkt3m2.mtx")
+BM_MAT_MKL(circuit5M, "circuit5M.mtx")
+BM_MAT_MKL(debr, "debr.mtx")
+#endif
 
 BENCHMARK_MAIN();
