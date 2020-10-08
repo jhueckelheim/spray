@@ -11,12 +11,14 @@ extern "C" int mm_read_mtx_array_size(FILE *f, int *M, int *N);
 #define mm_is_matrix(typecode)	((typecode)[0]=='M')
 #define mm_is_sparse(typecode)	((typecode)[1]=='C')
 #define mm_is_complex(typecode)	((typecode)[2]=='C')
+#define mm_is_real(typecode)	((typecode)[2]=='R')
+#define mm_is_pattern(typecode)	((typecode)[2]=='P')
 
 // Matrix Market file reader, slightly adapted from 
 // https://math.nist.gov/MatrixMarket/mmio/c/example_read.c
 // to support templated reading in single or double precision.
 template <typename T>
-void read_mm_coo (char* filename, coo<T>& coo_data){
+void read_mm_coo (const char* const filename, coo<T>& coo_data){
     int ret_code;
     MM_typecode matcode;
     FILE *f;
@@ -67,11 +69,26 @@ void read_mm_coo (char* filename, coo<T>& coo_data){
     /*   specifier as in "%lg", "%lf", "%le", otherwise errors will occur */
     /*  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            */
 
-    for (i=0; i<nz; i++)
-    {
-        scanline(f, &(coo_data.rows[i]), &(coo_data.cols[i]), &(coo_data.vals[i]));
-        coo_data.rows[i]--;  /* adjust from 1-based to 0-based */
-        coo_data.cols[i]--;
+    if (mm_is_real(matcode)) {
+        for (i=0; i<nz; i++)
+        {
+            scanline(f, &(coo_data.rows[i]), &(coo_data.cols[i]), &(coo_data.vals[i]));
+            coo_data.rows[i]--;  /* adjust from 1-based to 0-based */
+            coo_data.cols[i]--;
+        }
+    }
+    else if (mm_is_pattern(matcode)) {
+        for (i=0; i<nz; i++)
+        {
+            scanline(f, &(coo_data.rows[i]), &(coo_data.cols[i]));
+            coo_data.rows[i]--;  /* adjust from 1-based to 0-based */
+            coo_data.cols[i]--;
+            coo_data.vals[i] = 1.0;
+        }
+    }
+    else {
+        printf("Error: unsupported matrix file format.\n");
+        exit(-1);
     }
 
     if (f !=stdin) fclose(f);
@@ -85,8 +102,12 @@ void scanline(FILE *f, int *r, int *c, float *v) {
     fscanf(f, "%d %d %g\n", r, c, v);
 }
 
-template void read_mm_coo<double> (char* filename, coo<double>& coo_data);
-template void read_mm_coo<float> (char* filename, coo<float>& coo_data);
+void scanline(FILE *f, int *r, int *c) {
+    fscanf(f, "%d %d\n", r, c);
+}
+
+template void read_mm_coo<double> (const char* const filename, coo<double>& coo_data);
+template void read_mm_coo<float> (const char* const filename, coo<float>& coo_data);
 
 // sparsekit's coocsr conversion routine from coordinate to CSR format,
 // adapted to zero-based indexing, translated to C++, and templated for

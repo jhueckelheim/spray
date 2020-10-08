@@ -24,7 +24,7 @@ struct csr {
 }; 
 
 template <typename T>
-void read_mm_coo (char* filename, coo<T>&);
+void read_mm_coo (const char* const filename, coo<T>&);
 
 void scanline(FILE *f, int *r, int *c, float *v);
 void scanline(FILE *f, int *r, int *c, double *v);

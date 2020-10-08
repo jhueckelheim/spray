@@ -13,7 +13,7 @@ typedef double real;
 typedef float real;
 #endif
 
-static void init_test(int numthreads, char* mfilename, csr<real>& csr_data, real*& res, real*& x) {
+static void init_test(int numthreads, const char* const mfilename, csr<real>& csr_data, real*& res, real*& x) {
   coo<real> coo_data;
   read_mm_coo(mfilename,coo_data);
   coocsr(coo_data, csr_data);
@@ -36,7 +36,7 @@ static void destroy_test(real* res, real* x) {
   free(x);
 }
 
-static void BM_spmv(benchmark::State& state, char* mfilename) {
+static void BM_spmv(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -51,7 +51,7 @@ static void BM_spmv(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_serial(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_serial(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -65,7 +65,7 @@ static void BM_spmvt_serial(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_omp(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_omp(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -80,7 +80,7 @@ static void BM_spmvt_omp(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_atomic(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_atomic(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -96,7 +96,7 @@ static void BM_spmvt_atomic(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_blocks(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_blocks(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -112,7 +112,7 @@ static void BM_spmvt_blocks(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_locks(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_locks(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -128,7 +128,7 @@ static void BM_spmvt_locks(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_catomic(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_catomic(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -144,7 +144,7 @@ static void BM_spmvt_catomic(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_cdense(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_cdense(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -160,7 +160,7 @@ static void BM_spmvt_cdense(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_map(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_map(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -176,7 +176,7 @@ static void BM_spmvt_map(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_btree(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_btree(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -192,7 +192,7 @@ static void BM_spmvt_btree(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_keeper(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_keeper(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -209,7 +209,7 @@ static void BM_spmvt_keeper(benchmark::State& state, char* mfilename) {
 }
 
 #ifdef __INTEL_COMPILER
-static void BM_spmvt_mkl(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_mkl(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -224,7 +224,7 @@ static void BM_spmvt_mkl(benchmark::State& state, char* mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_mkl_ie(benchmark::State& state, char* mfilename) {
+static void BM_spmvt_mkl_ie(benchmark::State& state, const char* const mfilename, bool givehint, bool timehint) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
@@ -236,9 +236,15 @@ static void BM_spmvt_mkl_ie(benchmark::State& state, char* mfilename) {
 #else
     mkl_sparse_s_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
 #endif
-    mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
-    mkl_sparse_optimize(A);
+    if(givehint && !timehint) {
+        mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
+        mkl_sparse_optimize(A);
+    }
     for (auto _ : state) {
+        if(givehint && timehint) {
+            mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
+            mkl_sparse_optimize(A);
+        }
 #ifdef _DOUBLE
         mkl_sparse_d_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
 #else
@@ -262,13 +268,22 @@ static void BM_spmvt_mkl_ie(benchmark::State& state, char* mfilename) {
     BENCHMARK_CAPTURE(BM_spmvt_cdense, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_map, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_btree, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_keeper, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
+    BENCHMARK_CAPTURE(BM_spmvt_keeper, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime();
+
+#define BM_MAT_MKL(matname, matfile) \
     BENCHMARK_CAPTURE(BM_spmvt_mkl, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime();
+    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie, matname ## _ie_nohint, matfile, false, false)->ArgsProduct({threadcounts})->UseRealTime(); \
+    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie, matname ## _ie_hint_notime, matfile, true, false)->ArgsProduct({threadcounts})->UseRealTime(); \
+    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie, matname ## _ie_hint_time, matfile, true, true)->ArgsProduct({threadcounts})->UseRealTime();
+
 #define threadcounts {1,2,4,8,16,28,56}
 
 BM_MAT(s3dkt3m2, "s3dkt3m2.mtx")
-//BM_MAT(circuit5M, "circuit5M.mtx")
+BM_MAT(circuit5M, "circuit5M.mtx")
 BM_MAT(debr, "debr.mtx")
-
+#ifdef __INTEL_COMPILER
+BM_MAT_MKL(s3dkt3m2, "s3dkt3m2.mtx")
+BM_MAT_MKL(circuit5M, "circuit5M.mtx")
+BM_MAT_MKL(debr, "debr.mtx")
+#endif
 BENCHMARK_MAIN();
