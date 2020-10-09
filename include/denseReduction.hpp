@@ -17,6 +17,7 @@ public:
     init->size = orig->size;
     init->content = reinterpret_cast<contentType *>(
         aligned_alloc(alignment, orig->size * sizeof(contentType)));
+    for(int i=0; i<orig->size; i++) init->content[i] = 0;
     init->allocated = true;
   }
 
