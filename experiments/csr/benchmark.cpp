@@ -319,12 +319,17 @@ static void BM_spmvt_mkl_ie_hint_nontimed(benchmark::State& state, const char* c
 
 #define threadcounts {1,2,4,8,16,28,56}
 
+#ifndef CIRCUIT
 BM_MAT(s3dkt3m2, "s3dkt3m2.mtx")
-BM_MAT(circuit5M, "circuit5M.mtx")
 BM_MAT(debr, "debr.mtx")
 #ifdef __INTEL_COMPILER
 BM_MAT_MKL(s3dkt3m2, "s3dkt3m2.mtx")
-BM_MAT_MKL(circuit5M, "circuit5M.mtx")
 BM_MAT_MKL(debr, "debr.mtx")
+#endif
+#else
+BM_MAT(circuit5M, "circuit5M.mtx")
+#ifdef __INTEL_COMPILER
+BM_MAT_MKL(circuit5M, "circuit5M.mtx")
+#endif
 #endif
 BENCHMARK_MAIN();

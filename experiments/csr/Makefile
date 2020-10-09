@@ -16,9 +16,16 @@ test: exec s3dkt3m2.mtx circuit5M.mtx debr.mtx
 benchmark: benchmark.cpp mmio.o coo_csr_reader.o
 	$(CXX) $^ -isystem ../benchmark/include -L../benchmark/build/src -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -o $@
 
+benchmark_circuit: benchmark.cpp mmio.o coo_csr_reader.o
+	$(CXX) $^ -isystem ../benchmark/include -L../benchmark/build/src -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -DCIRCUIT -o $@
+
 timings.csv: benchmark
 	ulimit -s unlimited; OMP_STACKSIZE=1024M OMP_PLACES=sockets ./benchmark --benchmark_format=json --benchmark_repetitions=10 > timings.json
 	python filtertimes.py timings.json > timings.csv
+
+timings_circuit.csv: benchmark_circuit
+	ulimit -s unlimited; OMP_STACKSIZE=1024M OMP_PLACES=sockets ./benchmark_circuit --benchmark_format=json --benchmark_repetitions=10 > timings_circuit.json
+	python filtertimes.py timings_circuit.json > timings_circuit.csv
 
 clean:
 	rm *.o exec s3dkt3m2.mtx.gz circuit5M.tar.gz debr.tar.gz
