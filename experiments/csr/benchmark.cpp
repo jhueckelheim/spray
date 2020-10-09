@@ -224,32 +224,74 @@ static void BM_spmvt_mkl(benchmark::State& state, const char* const mfilename) {
     destroy_test(res, x);
 }
 
-static void BM_spmvt_mkl_ie(benchmark::State& state, const char* const mfilename, bool givehint, bool timehint) {
+static void BM_spmvt_mkl_ie_nohint(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
     real *res, *x;
     init_test(state.range(0), mfilename, csr_data, res, x);
     sparse_matrix_t A;
     matrix_descr descr;
     descr.type = SPARSE_MATRIX_TYPE_GENERAL;
-#ifdef _DOUBLE
+    #ifdef _DOUBLE
     mkl_sparse_d_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
-#else
+    #else
     mkl_sparse_s_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
-#endif
-    if(givehint && !timehint) {
+    #endif
+    for (auto _ : state) {
+        #ifdef _DOUBLE
+        mkl_sparse_d_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
+        #else
+        mkl_sparse_s_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
+        #endif
+    }
+    mkl_sparse_destroy(A);
+    destroy_test(res, x);
+}
+
+static void BM_spmvt_mkl_ie_hint_timed(benchmark::State& state, const char* const mfilename) {
+    csr<real> csr_data;
+    real *res, *x;
+    init_test(state.range(0), mfilename, csr_data, res, x);
+    sparse_matrix_t A;
+    matrix_descr descr;
+    descr.type = SPARSE_MATRIX_TYPE_GENERAL;
+    for (auto _ : state) {
+        #ifdef _DOUBLE
+        mkl_sparse_d_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
+        #else
+        mkl_sparse_s_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
+        #endif
         mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
         mkl_sparse_optimize(A);
-    }
-    for (auto _ : state) {
-        if(givehint && timehint) {
-            mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
-            mkl_sparse_optimize(A);
-        }
-#ifdef _DOUBLE
+        #ifdef _DOUBLE
         mkl_sparse_d_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
-#else
+        #else
         mkl_sparse_s_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
-#endif
+        #endif
+        mkl_sparse_destroy(A);
+    }
+    destroy_test(res, x);
+}
+
+static void BM_spmvt_mkl_ie_hint_nontimed(benchmark::State& state, const char* const mfilename) {
+    csr<real> csr_data;
+    real *res, *x;
+    init_test(state.range(0), mfilename, csr_data, res, x);
+    sparse_matrix_t A;
+    matrix_descr descr;
+    descr.type = SPARSE_MATRIX_TYPE_GENERAL;
+    #ifdef _DOUBLE
+    mkl_sparse_d_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
+    #else
+    mkl_sparse_s_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
+    #endif
+    mkl_sparse_set_mv_hint(A, SPARSE_OPERATION_TRANSPOSE, descr, 100000);
+    mkl_sparse_optimize(A);
+    for (auto _ : state) {
+        #ifdef _DOUBLE
+        mkl_sparse_d_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
+        #else
+        mkl_sparse_s_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
+        #endif
     }
     mkl_sparse_destroy(A);
     destroy_test(res, x);
@@ -258,7 +300,6 @@ static void BM_spmvt_mkl_ie(benchmark::State& state, const char* const mfilename
 
 #define BM_MAT(matname, matfile) \
     BENCHMARK_CAPTURE(BM_spmvt_serial, matname, matfile)->Arg(1)->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_omp, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmv, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_omp, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_atomic, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
@@ -272,9 +313,9 @@ static void BM_spmvt_mkl_ie(benchmark::State& state, const char* const mfilename
 
 #define BM_MAT_MKL(matname, matfile) \
     BENCHMARK_CAPTURE(BM_spmvt_mkl, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie, matname ## _ie_nohint, matfile, false, false)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie, matname ## _ie_hint_notime, matfile, true, false)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie, matname ## _ie_hint_time, matfile, true, true)->ArgsProduct({threadcounts})->UseRealTime();
+    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie_nohint, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
+    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie_hint_timed, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
+    BENCHMARK_CAPTURE(BM_spmvt_mkl_ie_hint_nontimed, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime();
 
 #define threadcounts {1,2,4,8,16,28,56}
 
