@@ -12,7 +12,7 @@ make -f Makefile_spray --always-make CC=icc REDUCTIONSTYLE=MAP
 make -f Makefile CC=icc
 
 set -x
-for ns in 30 50
+for ns in 30 90
 do
 	export OMP_PLACES=sockets
 	for nth in 1 2 4 8 16 28 56
