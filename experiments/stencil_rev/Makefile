@@ -1,7 +1,11 @@
 ifeq ($(CC),icc)
 include ../../make_intel.inc
 else
+ifeq ($(CC),clang)
+include ../../make_clang.inc
+else
 include ../../make_gnu.inc
+endif
 endif
 
 BLOCKSIZE=4096
@@ -16,7 +20,7 @@ test: exec
 	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec 10000000 2 5 100
 
 benchmark: benchmark.cpp
-	$(CXX) $^ -isystem ../benchmark/include -L../benchmark/build/src -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -Dreal=float -o $@
+	$(CXX) $^ $(CXXF) -I../../include -lbenchmark -lpthread -DBSIZE=$(BLOCKSIZE) -Dreal=float -o $@
 
 timings.csv: benchmark
 	ulimit -s unlimited; OMP_STACKSIZE=1024M OMP_PLACES=sockets ./benchmark --benchmark_format=json --benchmark_repetitions=10 > timings.json
