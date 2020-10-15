@@ -1,6 +1,5 @@
 #ifndef KEEPERREDUCTION_HPP
 #define KEEPERREDUCTION_HPP
-#include <assert.h>
 #include <stdlib.h>
 #include <omp.h>
 
@@ -54,7 +53,6 @@ namespace spray {
       }
   
       static void ompInit(KeeperReduction<contentType,blocksize> *init, KeeperReduction<contentType,blocksize> *orig) {
-        assert(orig->initialized);
         init->initialized = true;
         init->size = orig->size;
         init->isOrig = false;

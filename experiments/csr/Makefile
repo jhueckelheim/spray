@@ -14,18 +14,19 @@ test: exec s3dkt3m2.mtx circuit5M.mtx debr.mtx
 	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec debr.mtx 100
 
 benchmark: benchmark.cpp mmio.o coo_csr_reader.o
-	$(CXX) $^ -isystem ../benchmark/include -L../benchmark/build/src -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -o $@
+	$(CXX) $^ -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -o $@
 
 benchmark_circuit: benchmark.cpp mmio.o coo_csr_reader.o
-	$(CXX) $^ -isystem ../benchmark/include -L../benchmark/build/src -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -DCIRCUIT -o $@
+	$(CXX) $^ -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -DCIRCUIT -o $@
 
 timings.csv: benchmark
 	ulimit -s unlimited; OMP_STACKSIZE=1024M OMP_PLACES=sockets ./benchmark --benchmark_format=json --benchmark_repetitions=10 > timings.json
-	python filtertimes.py timings.json > timings.csv
+	python filtertimes.py timings.json debr > timings_debr.csv
+	python filtertimes.py timings.json s3dkt3m2 > timings_s3dkt3m2.csv
 
 timings_circuit.csv: benchmark_circuit
-	ulimit -s unlimited; OMP_STACKSIZE=1024M OMP_PLACES=sockets ./benchmark_circuit --benchmark_format=json --benchmark_repetitions=10 > timings_circuit.json
-	python filtertimes.py timings_circuit.json > timings_circuit.csv
+	ulimit -s unlimited; OMP_STACKSIZE=1024M OMP_PLACES=sockets ./benchmark_circuit --benchmark_format=json --benchmark_repetitions=1 > timings_circuit.json
+	python filtertimes.py timings_circuit.json circuit5M noaggregate > timings_circuit5M.csv
 
 clean:
 	rm *.o exec s3dkt3m2.mtx.gz circuit5M.tar.gz debr.tar.gz

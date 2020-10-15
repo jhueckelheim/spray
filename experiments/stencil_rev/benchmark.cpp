@@ -221,6 +221,26 @@ static void BM_keeper(benchmark::State& state) {
     destroy_test(inb, outb, wl, wr);
 }
 
+static void BM_awblck(benchmark::State& state) {
+    real *inb, *outb, *wl, *wr, wc;
+    int S = state.range(1);
+    int N = state.range(2);
+    init_test(state.range(0), S, N, inb, outb, wl, wr, wc);
+    for (auto _ : state) {
+        spray::BlockReduction4096<real> inb_b(N,inb);
+        #pragma omp parallel for reduction(+:inb_b)
+        for(int i=S; i<N-S; i++) {
+        //for (int i = N-S-1; i > S-1; --i) {
+            for (int j = S-1; j > -1; --j) {
+                inb_b[i - j - 1] += wl[j]*outb[i];
+                inb_b[i + j + 1] += wr[j]*outb[i];
+            }
+            inb_b[i] += wc*outb[i];
+        }
+    }
+    destroy_test(inb, outb, wl, wr);
+}
+
 BENCHMARK(BM_serial )->ArgsProduct({{1               },{1,2,4},{1000000,10000000}})->UseRealTime();
 BENCHMARK(BM_omp    )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
 BENCHMARK(BM_atomic )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
@@ -231,5 +251,6 @@ BENCHMARK(BM_cdense )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000
 BENCHMARK(BM_map    )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
 BENCHMARK(BM_btree  )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
 BENCHMARK(BM_keeper )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
+BENCHMARK(BM_awblck )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
 
 BENCHMARK_MAIN();

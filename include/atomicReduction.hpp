@@ -1,6 +1,5 @@
 #ifndef ATOMICREDUCTION_HPP
 #define ATOMICREDUCTION_HPP
-#include <assert.h>
 
 namespace spray {
 template <typename contentType> class AtomicScalar {
@@ -27,18 +26,15 @@ public:
 
   static void ompInit(AtomicReduction<contentType> *init,
                       AtomicReduction<contentType> *orig) {
-    assert(orig->initialized);
     init->orig = orig->orig;
     init->initialized = true;
   }
 
   static void ompReduce(AtomicReduction<contentType> *out,
                         AtomicReduction<contentType> *in) {
-    assert(out->initialized && in->initialized);
   }
 
   AtomicScalar<contentType> operator[](int idx) {
-    assert(this->initialized);
     return AtomicScalar<contentType>(this->orig + idx);
   }
 
