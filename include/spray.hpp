@@ -5,4 +5,5 @@
 #include "denseReduction.hpp"
 #include "mapReduction.hpp"
 #include "keeperReduction.hpp"
+#include "AWBlockReduction.hpp"
 #endif
