@@ -6,8 +6,8 @@
 static void init_test(int numthreads, int stencilsize, int domainsize, real*& inb, real*& outb, real*& weightsl, real*& weightsr, real& weightc) {
   omp_set_dynamic(0);
   omp_set_num_threads(numthreads);
-  inb = (real*) malloc(domainsize * sizeof(real));
-  outb = (real*) malloc(domainsize * sizeof(real));
+  inb = (real*) aligned_alloc(512,domainsize * sizeof(real));
+  outb = (real*) aligned_alloc(512,domainsize * sizeof(real));
   weightsl = (real*) malloc(stencilsize * sizeof(real));
   weightsr = (real*) malloc(stencilsize * sizeof(real));
   for(int i=0; i<domainsize; i++) {
@@ -221,7 +221,102 @@ static void BM_keeper(benchmark::State& state) {
     destroy_test(inb, outb, wl, wr);
 }
 
-static void BM_awblck(benchmark::State& state) {
+static void BM_awblck16(benchmark::State& state) {
+    real *inb, *outb, *wl, *wr, wc;
+    int S = state.range(1);
+    int N = state.range(2);
+    init_test(state.range(0), S, N, inb, outb, wl, wr, wc);
+    for (auto _ : state) {
+        spray::BlockReduction16<real> inb_b(N,inb);
+        #pragma omp parallel for reduction(+:inb_b)
+        for(int i=S; i<N-S; i++) {
+        //for (int i = N-S-1; i > S-1; --i) {
+            for (int j = S-1; j > -1; --j) {
+                inb_b[i - j - 1] += wl[j]*outb[i];
+                inb_b[i + j + 1] += wr[j]*outb[i];
+            }
+            inb_b[i] += wc*outb[i];
+        }
+    }
+    destroy_test(inb, outb, wl, wr);
+}
+static void BM_awblck64(benchmark::State& state) {
+    real *inb, *outb, *wl, *wr, wc;
+    int S = state.range(1);
+    int N = state.range(2);
+    init_test(state.range(0), S, N, inb, outb, wl, wr, wc);
+    for (auto _ : state) {
+        spray::BlockReduction64<real> inb_b(N,inb);
+        #pragma omp parallel for reduction(+:inb_b)
+        for(int i=S; i<N-S; i++) {
+        //for (int i = N-S-1; i > S-1; --i) {
+            for (int j = S-1; j > -1; --j) {
+                inb_b[i - j - 1] += wl[j]*outb[i];
+                inb_b[i + j + 1] += wr[j]*outb[i];
+            }
+            inb_b[i] += wc*outb[i];
+        }
+    }
+    destroy_test(inb, outb, wl, wr);
+}
+static void BM_awblck256(benchmark::State& state) {
+    real *inb, *outb, *wl, *wr, wc;
+    int S = state.range(1);
+    int N = state.range(2);
+    init_test(state.range(0), S, N, inb, outb, wl, wr, wc);
+    for (auto _ : state) {
+        spray::BlockReduction256<real> inb_b(N,inb);
+        #pragma omp parallel for reduction(+:inb_b)
+        for(int i=S; i<N-S; i++) {
+        //for (int i = N-S-1; i > S-1; --i) {
+            for (int j = S-1; j > -1; --j) {
+                inb_b[i - j - 1] += wl[j]*outb[i];
+                inb_b[i + j + 1] += wr[j]*outb[i];
+            }
+            inb_b[i] += wc*outb[i];
+        }
+    }
+    destroy_test(inb, outb, wl, wr);
+}
+static void BM_awblck1024(benchmark::State& state) {
+    real *inb, *outb, *wl, *wr, wc;
+    int S = state.range(1);
+    int N = state.range(2);
+    init_test(state.range(0), S, N, inb, outb, wl, wr, wc);
+    for (auto _ : state) {
+        spray::BlockReduction1024<real> inb_b(N,inb);
+        #pragma omp parallel for reduction(+:inb_b)
+        for(int i=S; i<N-S; i++) {
+        //for (int i = N-S-1; i > S-1; --i) {
+            for (int j = S-1; j > -1; --j) {
+                inb_b[i - j - 1] += wl[j]*outb[i];
+                inb_b[i + j + 1] += wr[j]*outb[i];
+            }
+            inb_b[i] += wc*outb[i];
+        }
+    }
+    destroy_test(inb, outb, wl, wr);
+}
+static void BM_awblck4096(benchmark::State& state) {
+    real *inb, *outb, *wl, *wr, wc;
+    int S = state.range(1);
+    int N = state.range(2);
+    init_test(state.range(0), S, N, inb, outb, wl, wr, wc);
+    for (auto _ : state) {
+        spray::BlockReduction4096<real> inb_b(N,inb);
+        #pragma omp parallel for reduction(+:inb_b)
+        for(int i=S; i<N-S; i++) {
+        //for (int i = N-S-1; i > S-1; --i) {
+            for (int j = S-1; j > -1; --j) {
+                inb_b[i - j - 1] += wl[j]*outb[i];
+                inb_b[i + j + 1] += wr[j]*outb[i];
+            }
+            inb_b[i] += wc*outb[i];
+        }
+    }
+    destroy_test(inb, outb, wl, wr);
+}
+static void BM_awblck16384(benchmark::State& state) {
     real *inb, *outb, *wl, *wr, wc;
     int S = state.range(1);
     int N = state.range(2);
@@ -241,16 +336,20 @@ static void BM_awblck(benchmark::State& state) {
     destroy_test(inb, outb, wl, wr);
 }
 
-BENCHMARK(BM_serial )->ArgsProduct({{1               },{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_omp    )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_atomic )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_blocks )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_locks  )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_catomic)->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_cdense )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_map    )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_btree  )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_keeper )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
-BENCHMARK(BM_awblck )->ArgsProduct({{1,2,4,8,16,28,56},{1,2,4},{1000000,10000000}})->UseRealTime();
+BENCHMARK(BM_serial )->ArgsProduct({{1               },{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_omp    )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_atomic )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_blocks )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_locks  )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_catomic)->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_cdense )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_keeper )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_awblck16 )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_awblck256 )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_awblck1024 )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_awblck4096 )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+BENCHMARK(BM_awblck16384 )->ArgsProduct({{1,2,4,8,16,28,56},{1},{10000000}})->UseRealTime();
+//BENCHMARK(BM_map    )->ArgsProduct({{1,2,4,8,16,28,56},{1},{1000000}})->UseRealTime();
+//BENCHMARK(BM_btree  )->ArgsProduct({{1,2,4,8,16,28,56},{1},{1000000}})->UseRealTime();
 
 BENCHMARK_MAIN();

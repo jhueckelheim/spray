@@ -208,6 +208,22 @@ static void BM_spmvt_keeper(benchmark::State& state, const char* const mfilename
     destroy_test(res, x);
 }
 
+static void BM_spmvt_awlock(benchmark::State& state, const char* const mfilename) {
+    csr<real> csr_data;
+    real *res, *x;
+    init_test(state.range(0), mfilename, csr_data, res, x);
+    for (auto _ : state) {
+        spray::BlockReduction1024<real> x_p(csr_data.nc, x);
+        #pragma omp parallel for reduction(+:x_p)
+        for (int i = 0; i < csr_data.nr; i++) {
+            for (int k = csr_data.rptr[i]; k < csr_data.rptr[i+1]; k++) {
+                x_p[csr_data.cols[k]] += csr_data.vals[k]*res[i];
+            }
+        }
+    }
+    destroy_test(res, x);
+}
+
 #ifdef __INTEL_COMPILER
 static void BM_spmvt_mkl(benchmark::State& state, const char* const mfilename) {
     csr<real> csr_data;
@@ -231,15 +247,12 @@ static void BM_spmvt_mkl_ie_nohint(benchmark::State& state, const char* const mf
     sparse_matrix_t A;
     matrix_descr descr;
     descr.type = SPARSE_MATRIX_TYPE_GENERAL;
-    #ifdef _DOUBLE
-    mkl_sparse_d_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
-    #else
-    mkl_sparse_s_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
-    #endif
     for (auto _ : state) {
         #ifdef _DOUBLE
+        mkl_sparse_d_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
         mkl_sparse_d_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
         #else
+        mkl_sparse_s_create_csr(&A, SPARSE_INDEX_BASE_ZERO, csr_data.nr, csr_data.nc, csr_data.rptr, csr_data.rptr+1, csr_data.cols, csr_data.vals);
         mkl_sparse_s_mv(SPARSE_OPERATION_TRANSPOSE, 1.0, A, descr, x, 1.0, res);
         #endif
     }
@@ -307,9 +320,10 @@ static void BM_spmvt_mkl_ie_hint_nontimed(benchmark::State& state, const char* c
     BENCHMARK_CAPTURE(BM_spmvt_locks, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_catomic, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
     BENCHMARK_CAPTURE(BM_spmvt_cdense, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_map, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_btree, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
-    BENCHMARK_CAPTURE(BM_spmvt_keeper, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime();
+    BENCHMARK_CAPTURE(BM_spmvt_keeper, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
+    BENCHMARK_CAPTURE(BM_spmvt_awlock, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime();
+//    BENCHMARK_CAPTURE(BM_spmvt_map, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \
+//    BENCHMARK_CAPTURE(BM_spmvt_btree, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime();
 
 #define BM_MAT_MKL(matname, matfile) \
     BENCHMARK_CAPTURE(BM_spmvt_mkl, matname, matfile)->ArgsProduct({threadcounts})->UseRealTime(); \

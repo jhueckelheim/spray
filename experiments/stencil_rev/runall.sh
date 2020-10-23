@@ -35,4 +35,3 @@ python filtertimes.py timings.json > timings_gnu_O2.csv
 g++ benchmark.cpp -fopenmp -O1 -march=native -isystem ../benchmark/gnu/benchmark/include -L../benchmark/gnu/benchmark/build/src  -I../../include -lbenchmark -lpthread -DBSIZE=4096 -Dreal=float -o benchmark
 ulimit -s unlimited; OMP_STACKSIZE=1024M OMP_PLACES=sockets ./benchmark --benchmark_format=json --benchmark_repetitions=10 > timings_gnu_O1.json
 python filtertimes.py timings.json > timings_gnu_O1.csv
-rm -rf ../benchmark

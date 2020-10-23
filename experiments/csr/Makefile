@@ -9,9 +9,21 @@ BLOCKSIZE=4096
 all: exec
 
 test: exec s3dkt3m2.mtx circuit5M.mtx debr.mtx
-	OMP_PLACES=sockets ./exec s3dkt3m2.mtx 1000
-	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec circuit5M.mtx 10
-	ulimit -s unlimited; OMP_STACKSIZE=256M OMP_PLACES=sockets ./exec debr.mtx 100
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 1   # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 2   # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 3   # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 4   # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 5   # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 6   # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 7   # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 8   # s3dkt3m2.mtx 
+	#OMP_PLACES=sockets /usr/bin/time -v ./exec debr.mtx  1000 9  #  s3dkt3m2.mtx
+	#OMP_PLACES=sockets /usr/bin/time -v ./exec debr.mtx  1000 10 #  s3dkt3m2.mtx
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 11  # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 12  # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 13  # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 14  # s3dkt3m2.mtx 
+	OMP_PLACES=sockets /usr/bin/time -v ./exec  debr.mtx 1000 15  # s3dkt3m2.mtx 
 
 benchmark: benchmark.cpp mmio.o coo_csr_reader.o
 	$(CXX) $^ -I../../include -lbenchmark -lpthread $(CXXF) -DBSIZE=$(BLOCKSIZE) -o $@

@@ -16,7 +16,37 @@
 #ifdef MAP
 #define _REDUCTION_VAR(varname, size, original) spray::STLMapReduction<Real_t> varname ( original);
 #else
+#ifdef LOCK
 #define _REDUCTION_VAR(varname, size, original) spray::BlockReduction<Real_t> varname ( size , original , true);
+#else
+#ifdef MAP
+#define _REDUCTION_VAR(varname, size, original) spray::STLMapReduction<Real_t> varname ( original);
+#else
+#ifdef AWLOCK16
+#define _REDUCTION_VAR(varname, size, original) spray::BlockReduction16<Real_t> varname ( size, original);
+#else
+#ifdef AWLOCK64
+#define _REDUCTION_VAR(varname, size, original) spray::BlockReduction64<Real_t> varname ( size, original);
+#else
+#ifdef AWLOCK256
+#define _REDUCTION_VAR(varname, size, original) spray::BlockReduction256<Real_t> varname ( size, original);
+#else
+#ifdef AWLOCK1024
+#define _REDUCTION_VAR(varname, size, original) spray::BlockReduction1024<Real_t> varname ( size, original);
+#else
+#ifdef AWLOCK4096
+#define _REDUCTION_VAR(varname, size, original) spray::BlockReduction4096<Real_t> varname ( size, original);
+#else
+#ifdef AWLOCK16384
+#define _REDUCTION_VAR(varname, size, original) spray::BlockReduction16384<Real_t> varname ( size, original);
+#endif
+#endif
+#endif
+#endif
+#endif
+#endif
+#endif
+#endif
 #endif
 #endif
 #endif

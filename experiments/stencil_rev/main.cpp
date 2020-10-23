@@ -54,7 +54,46 @@ void conv1d_b_atomic(int N, real *in, real *inb, real *out, real *outb, int S, r
 
 void conv1d_b_blockreduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
         wl, real *wr, real wc) {
+    spray::BlockReduction<real> inb_b(N,inb,false);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_lockreduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
     spray::BlockReduction<real> inb_b(N,inb,true);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_catomicreduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::AtomicReduction<real> inb_b(inb);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_cdensereduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::DenseReduction<real> inb_b(N,inb);
     #pragma omp parallel for reduction(+:inb_b)
     for (int i = N-S-1; i > S-1; --i) {
         for (int j = S-1; j > -1; --j) {
@@ -71,6 +110,84 @@ void conv1d_b_keeperreduce(int N, real *in, real *inb, real *out, real *outb, in
     #pragma omp parallel for reduction(+:inb_b)
     for(int i=S; i<N-S; i++) {
     //for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_aw16reduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::BlockReduction16<real> inb_b(N,inb);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_aw64reduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::BlockReduction64<real> inb_b(N,inb);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_aw256reduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::BlockReduction256<real> inb_b(N,inb);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_aw1024reduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::BlockReduction1024<real> inb_b(N,inb);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_aw4096reduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::BlockReduction4096<real> inb_b(N,inb);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
+        for (int j = S-1; j > -1; --j) {
+            inb_b[i - j - 1] += wl[j]*outb[i];
+            inb_b[i + j + 1] += wr[j]*outb[i];
+        }
+        inb_b[i] += wc*outb[i];
+    }
+}
+
+void conv1d_b_aw16384reduce(int N, real *in, real *inb, real *out, real *outb, int S, real *
+        wl, real *wr, real wc) {
+    spray::BlockReduction16384<real> inb_b(N,inb);
+    #pragma omp parallel for reduction(+:inb_b)
+    for (int i = N-S-1; i > S-1; --i) {
         for (int j = S-1; j > -1; --j) {
             inb_b[i - j - 1] += wl[j]*outb[i];
             inb_b[i + j + 1] += wr[j]*outb[i];
@@ -97,10 +214,37 @@ void conv1d_b_repeat(int domainsize, real *domain_in, real *domain_inb, real *do
         conv1d_b_blockreduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
         break;
       case 5:
+        conv1d_b_lockreduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 6:
+        conv1d_b_catomicreduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 7:
+        conv1d_b_cdensereduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 8:
         conv1d_b_keeperreduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
         break;
+      case 9:
+        conv1d_b_aw16reduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 10:
+        conv1d_b_aw64reduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 11:
+        conv1d_b_aw256reduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 12:
+        conv1d_b_aw1024reduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 13:
+        conv1d_b_aw4096reduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
+      case 14:
+        conv1d_b_aw16384reduce(domainsize, domain_in, domain_inb, domain_out, domain_outb, stencilsize, weightsl, weightsr, weightc);
+        break;
       default:
-        std::cout<<"Unknown method, choose 1-5."<<std::endl;
+        std::cout<<"Unknown method, choose 1-14."<<std::endl;
     }
   }
 }
