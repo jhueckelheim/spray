@@ -1,6 +1,5 @@
 #ifndef BLOCKREDUCTION_HPP
 #define BLOCKREDUCTION_HPP
-#include <assert.h>
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +50,6 @@ public:
   // BlockReduction, it is called at the end of the scope where this is created
   // by the user.
   ~BlockReduction() {
-    assert(this->initialized);
     free(this->blocks);
     if (orig == NULL && this->useLocks) {
       for (int i = 0; i < nblocks; i++) {
@@ -110,7 +108,6 @@ public:
   //       anyways).
   static void ompReduce(BlockReduction<contentType> *out,
                         BlockReduction<contentType> *in) {
-    assert(out->initialized && in->initialized);
     int i, j;
     if (out->nblocks == 1 && out->blocks[0] != NULL) {
       // An output with only one block: That is probably our "special" output
@@ -137,7 +134,6 @@ public:
         }
       }
     } else {
-      assert(out->nblocks == in->nblocks);
       // We are merging two BlockReductions, neither of which is the "special"
       // one
       for (i = 0; i < in->nblocks; i++) {
@@ -185,7 +181,6 @@ public:
   // Array index operator. If the array index lives in a block that does not
   // exist yet, we call createBlockIfNeeded() to create this block.
   contentType &operator[](int idx) {
-    assert(this->initialized);
     int idxInBlock = idx % BSIZE;
     int block = idx / BSIZE;
     this->createBlockIfNeeded(block);
@@ -246,7 +241,6 @@ private:
   // thread will directly write into the output array. If unsuccessful, we
   // allocate a privatized block of data now.
   void createBlockIfNeeded(int block) {
-    assert(this->initialized);
     if (this->blocks[block] == NULL) {
       if (this->orig->useLocks &&
           omp_test_lock(&(this->orig->writelocks[block]))) {
