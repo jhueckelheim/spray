@@ -146,6 +146,30 @@ void _spray_ndblock_ompinit(spray_ndblock_double *__restrict__ init,
   }
 }
 
+void _merge_block_into_orig(int blocki, int blockj, int blockk, double* rawblock, spray_ndblock_double* out) {
+  /*
+  This function takes a privatized block and adds it to the original output
+  array. This looks a little complicated simply because the shapes do not
+  match: The block is a contiguous chunk of BSIZE*BSIZE*BSIZE, which maps to
+  BSIZE*BSIZE contiguous stripes of length BSIZE in the output array (each
+  stripe is contiguous, but they are not near each other in memory).
+  */
+  double (*outfield)[out->sizey][out->sizez] = (double (*)[out->sizey][out->sizez])out->content;
+  double (*block)[BSIZE][BSIZE] = (double (*)[BSIZE][BSIZE])rawblock;
+  int blockstart_i = blocki*BSIZE;
+  int blockstart_j = blockj*BSIZE;
+  int blockstart_k = blockk*BSIZE;
+  #pragma omp simd aligned(block : ALIGNMENT) collapse(3)
+  for(int i_in_blk=0; i_in_blk<BSIZE; i_in_blk++) {
+    for(int j_in_blk=0; j_in_blk<BSIZE; j_in_blk++) {
+      for(int k_in_blk=0; k_in_blk<BSIZE; k_in_blk++) {
+        outfield[blockstart_i+i_in_blk][blockstart_j+j_in_blk][blockstart_k+k_in_blk] += block[i_in_blk][j_in_blk][k_in_blk];
+      }
+    }
+  }
+  free(rawblock);
+}
+
 void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
                               spray_ndblock_double *__restrict__ in) {
   /*
@@ -159,7 +183,7 @@ void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
     We merge two reducer objects that did work on a thread and may hold any
     number of privatized blocks or locks. We iterate over the entire grid of
     block pointers, and do work depending on whether they point to a
-    privatized block or signal an acquired lock, on either `in` or `out`.
+    privatized block or signal an acquired lock.
     */
     double (*outfield)[out->sizey][out->sizez] = (double (*)[out->sizey][out->sizez])out->content;
     double* (*blockgrid_in)[in->nblky][in->nblkz] = (double* (*)[in->nblky][in->nblkz])in->blockcontent;
@@ -178,9 +202,18 @@ void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
             blockgrid_out[blocki][blockj][blockk] = rawblk_in;
           }
           else if (rawblk_in) {
+            /*
+            If we get here, it means the `in` and `out` object both have data
+            for this block. We now must distinguish between privatized blocks
+            or locks into the original data array.
+            */
 #ifdef USELOCKS
             if(rawblk_in != out->signal_lock && rawblk_out != out->signal_lock) {
 #endif
+              /*
+              In this case, both `in` and `out` hold a privatized block. We
+              add the incoming block to the outgoing block and free the former.
+              */
               #pragma omp simd aligned(rawblk_out, rawblk_in : ALIGNMENT)
               for(int i=0;i<in->nblkxyz;i++) {
                 rawblk_out[i] += rawblk_in[i];
@@ -189,24 +222,29 @@ void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
 #ifdef USELOCKS
             }
             else {
+              /*
+              In this case, exactly one of the objects has a lock into the
+              original array (we explicitly tested that at least one has it,
+              but they can't both have it, since it is a lock!). The other
+              object must hold a privatized block.
+              */
               if(rawblk_in == out->signal_lock) {
+                /*
+                We want the outgoing object to have the lock. If the incoming
+                object had it, we swap the data pointers of `in` and `out` so
+                that `out` will hold the lock and `in` will hold the privatized
+                block.
+                */
                 blockgrid_in[blocki][blockj][blockk] = rawblk_out;
                 blockgrid_out[blocki][blockj][blockk] = out->signal_lock;
               }
-              double (*outfield)[out->sizey][out->sizez] = (double (*)[out->sizey][out->sizez])out->content;
-              double (*block)[BSIZE][BSIZE] = (double (*)[BSIZE][BSIZE])rawblk_in;
-              int blockstart_i = blocki*BSIZE;
-              int blockstart_j = blockj*BSIZE;
-              int blockstart_k = blockk*BSIZE;
-              #pragma omp simd aligned(rawblk_in : ALIGNMENT) collapse(3)
-              for(int i_in_blk=0; i_in_blk<BSIZE; i_in_blk++) {
-                for(int j_in_blk=0; j_in_blk<BSIZE; j_in_blk++) {
-                  for(int k_in_blk=0; k_in_blk<BSIZE; k_in_blk++) {
-                    outfield[blockstart_i+i_in_blk][blockstart_j+j_in_blk][blockstart_k+k_in_blk] += block[i_in_blk][j_in_blk][k_in_blk];
-                  }
-                }
-              }
-              free(blockgrid_in[blocki][blockj][blockk]);
+              /*
+              When we get here, we know that `out` holds a lock to this block
+              in the original output array, and `in` has a pointer to a private
+              block. We add the values from the private block into the original
+              array, then free the private block.
+              */
+              _merge_block_into_orig(blocki,blockj,blockk,rawblk_in,out);
             }
 #endif
           }
@@ -215,7 +253,11 @@ void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
     }
   }
   else {
-    double (*outfield)[out->sizey][out->sizez] = (double (*)[out->sizey][out->sizez])out->content;
+    /*
+    This is the case where `out` is just a thin shell around the original
+    output array. We go through all privatized blocks in `in` and merge them
+    into the output array.
+    */
     double* (*blockgrid_in)[in->nblky][in->nblkz] = (double* (*)[in->nblky][in->nblkz])in->blockcontent;
     for(int blocki = 0; blocki<in->nblkx; blocki++) {
       for(int blockj = 0; blockj<in->nblky; blockj++) {
@@ -226,24 +268,17 @@ void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
              && rawblk_in != out->signal_lock
 #endif
             ) {
-            double (*block)[BSIZE][BSIZE] = (double (*)[BSIZE][BSIZE])rawblk_in;
-            int blockstart_i = blocki*BSIZE;
-            int blockstart_j = blockj*BSIZE;
-            int blockstart_k = blockk*BSIZE;
-            #pragma omp simd aligned(rawblk_in : ALIGNMENT) collapse(3)
-            for(int i_in_blk=0; i_in_blk<BSIZE; i_in_blk++) {
-              for(int j_in_blk=0; j_in_blk<BSIZE; j_in_blk++) {
-                for(int k_in_blk=0; k_in_blk<BSIZE; k_in_blk++) {
-                  outfield[blockstart_i+i_in_blk][blockstart_j+j_in_blk][blockstart_k+k_in_blk] += block[i_in_blk][j_in_blk][k_in_blk];
-                }
-              }
-            }
-            free(rawblk_in);
+              _merge_block_into_orig(blocki,blockj,blockk,rawblk_in,out);
           }
         }
       }
     }
   }
+  /*
+  While adding data from `in` into `out`, we have also freed all privatized
+  blocks that were owned by `in`. Now is a good time to free() the array of
+  pointers to `in`'s privatized blocks.
+  */
   free(in->blockcontent);
 }
 
