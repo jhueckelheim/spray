@@ -35,6 +35,7 @@ int main(int argc, char** argv) {
       }
     }
   }
+  spray_ndblock_destroy(&sp_arr);
 
   for(int i=1;i<NI-1;i++) {
     for(int j=1;j<NJ-1;j++) {
