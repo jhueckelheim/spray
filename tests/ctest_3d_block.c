@@ -20,22 +20,22 @@ int main(int argc, char** argv) {
   }
 
   spray_ndblock_double sp_arr;
-  spray_ndblock_init(&sp_arr, &(arr[0][0][0]), NI, NJ, NK);
+  spray_ndblock_init_double(&sp_arr, &(arr[0][0][0]), NI, NJ, NK);
   #pragma omp parallel for reduction(+:sp_arr)
   for(int i=1;i<NI-1;i++) {
     for(int j=1;j<NJ-1;j++) {
       for(int k=1;k<NK-1;k++) {
-        spray_ndblock_increment(&sp_arr, i,   j,   k,     1.0);
-        spray_ndblock_increment(&sp_arr, i-1, j,   k,     2.0);
-        spray_ndblock_increment(&sp_arr, i+1, j,   k,     4.0);
-        spray_ndblock_increment(&sp_arr, i,   j-1, k,     8.0);
-        spray_ndblock_increment(&sp_arr, i,   j+1, k,    16.0);
-        spray_ndblock_increment(&sp_arr, i,   j,   k-1,  32.0);
-        spray_ndblock_increment(&sp_arr, i,   j,   k+1,  64.0);
+        spray_ndblock_increment_double(&sp_arr, i,   j,   k,     1.0);
+        spray_ndblock_increment_double(&sp_arr, i-1, j,   k,     2.0);
+        spray_ndblock_increment_double(&sp_arr, i+1, j,   k,     4.0);
+        spray_ndblock_increment_double(&sp_arr, i,   j-1, k,     8.0);
+        spray_ndblock_increment_double(&sp_arr, i,   j+1, k,    16.0);
+        spray_ndblock_increment_double(&sp_arr, i,   j,   k-1,  32.0);
+        spray_ndblock_increment_double(&sp_arr, i,   j,   k+1,  64.0);
       }
     }
   }
-  spray_ndblock_destroy(&sp_arr);
+  spray_ndblock_destroy_double(&sp_arr);
 
   for(int i=1;i<NI-1;i++) {
     for(int j=1;j<NJ-1;j++) {
