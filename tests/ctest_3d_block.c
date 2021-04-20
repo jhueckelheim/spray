@@ -39,7 +39,6 @@ int main(int argc, char** argv) {
   for(int i=1;i<NI-1;i++) {
     for(int j=1;j<NJ-1;j++) {
       for(int k=1;k<NK-1;k++) {
-        double tid = 100000.0*(omp_get_thread_num()+1);
         arr_ref[i  ][j  ][k  ]+=  1.0;
         arr_ref[i-1][j  ][k  ]+=  2.0;
         arr_ref[i+1][j  ][k  ]+=  4.0;

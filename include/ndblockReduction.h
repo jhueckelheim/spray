@@ -1,5 +1,5 @@
-#ifndef NDDENSEREDUCTION_H
-#define NDDENSEREDUCTION_H
+#ifndef NDBLOCKREDUCTION_H
+#define NDBLOCKREDUCTION_H
 
 #include <stdbool.h>
 #include <stdlib.h>
