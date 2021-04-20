@@ -16,8 +16,10 @@ typedef struct {
   bool allocated;
   double *content;
   double **blockcontent;
+#ifdef USELOCKS
   omp_lock_t *writelocks;
   double *signal_lock;
+#endif
 } spray_ndblock_double;
 
 void spray_ndblock_init(spray_ndblock_double *__restrict__ init,
@@ -32,6 +34,7 @@ void spray_ndblock_init(spray_ndblock_double *__restrict__ init,
   init->nblkxyz = init->nblkx * init->nblky * init->nblkz;
   init->content = orig;
   init->allocated = false;
+#ifdef USELOCKS
   init->signal_lock = orig;
   init->writelocks = (omp_lock_t*)malloc(init->nblkxyz * sizeof(omp_lock_t));
   if (init->writelocks == NULL) {
@@ -41,13 +44,16 @@ void spray_ndblock_init(spray_ndblock_double *__restrict__ init,
   for (int i = 0; i < init->nblkxyz; i++) {
     omp_init_lock(&(init->writelocks[i]));
   }
+#endif
 }
 
 void spray_ndblock_destroy(spray_ndblock_double *__restrict__ obj) {
+#ifdef USELOCKS
   for (int i = 0; i < obj->nblkxyz; i++) {
     omp_destroy_lock(&(obj->writelocks[i]));
   }
   free(obj->writelocks);
+#endif
 }
 
 void spray_ndblock_increment(spray_ndblock_double *obj, int ix, int iy, int iz, double val) {
@@ -70,6 +76,7 @@ void spray_ndblock_increment(spray_ndblock_double *obj, int ix, int iy, int iz, 
     pointer will not be dereferenced later, but only serves as a signal that we
     may write into the original array.
     */
+#ifdef USELOCKS
     omp_lock_t (*writelockgrid)[obj->nblky][obj->nblkz] = (omp_lock_t (*)[obj->nblky][obj->nblkz])obj->writelocks;
     if(omp_test_lock(&writelockgrid[blocki][blockj][blockk])) {
       blockgrid[blocki][blockj][blockk] = obj->signal_lock;
@@ -79,6 +86,7 @@ void spray_ndblock_increment(spray_ndblock_double *obj, int ix, int iy, int iz, 
     we instead allocate a privatized block and initialize it to zero.
     */
     else {
+#endif
       blockgrid[blocki][blockj][blockk] = (double*)aligned_alloc(ALIGNMENT, BSIZEND*sizeof(double));
       if (blockgrid[blocki][blockj][blockk] == NULL) {
         printf("Failed to alloc block %d %d %d.\n",blocki,blockj,blockk);
@@ -87,7 +95,9 @@ void spray_ndblock_increment(spray_ndblock_double *obj, int ix, int iy, int iz, 
       for(int i=0; i<BSIZEND; i++) {
         blockgrid[blocki][blockj][blockk][i] = 0.0;
       }
+#ifdef USELOCKS
     }
+#endif
   }
   /*
   At this point, we have memory available to write (either from a previous call
@@ -96,14 +106,18 @@ void spray_ndblock_increment(spray_ndblock_double *obj, int ix, int iy, int iz, 
   array (if the pointer signals to us that we acquired the lock) or by writing
   to the privatized block.
   */
+#ifdef USELOCKS
   if(blockgrid[blocki][blockj][blockk] == obj->signal_lock) {
     double (*outfield)[obj->sizey][obj->sizez] = (double (*)[obj->sizey][obj->sizez])obj->content;
     outfield[ix][iy][iz] += val;
   }
   else {
+#endif
     double (*curblock)[BSIZE][BSIZE] = (double (*)[obj->sizey][obj->sizez])blockgrid[blocki][blockj][blockk];
     curblock[i_in_blk][j_in_blk][k_in_blk] += val;
+#ifdef USELOCKS
   }
+#endif
 }
 
 void _spray_ndblock_ompinit(spray_ndblock_double *__restrict__ init,
@@ -118,7 +132,10 @@ void _spray_ndblock_ompinit(spray_ndblock_double *__restrict__ init,
   init->nblkxyz = orig->nblkxyz;
   init->allocated = true;
   init->content = orig->content;
+#ifdef USELOCKS
   init->signal_lock = orig->signal_lock;
+  init->writelocks = orig->writelocks;
+#endif
   init->blockcontent = (double**)(aligned_alloc(ALIGNMENT, orig->nblkxyz * sizeof(double*)));
   if (init->blockcontent == NULL) {
     printf("Failed to alloc blockcontent.\n");
@@ -127,7 +144,6 @@ void _spray_ndblock_ompinit(spray_ndblock_double *__restrict__ init,
   for(int i=0;i<init->nblkxyz;i++) {
     init->blockcontent[i] = NULL;
   }
-  init->writelocks = orig->writelocks;
 }
 
 void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
@@ -162,12 +178,15 @@ void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
             blockgrid_out[blocki][blockj][blockk] = rawblk_in;
           }
           else if (rawblk_in) {
+#ifdef USELOCKS
             if(rawblk_in != out->signal_lock && rawblk_out != out->signal_lock) {
+#endif
               #pragma omp simd aligned(rawblk_out, rawblk_in : ALIGNMENT)
               for(int i=0;i<in->nblkxyz;i++) {
                 rawblk_out[i] += rawblk_in[i];
               }
               free(rawblk_in);
+#ifdef USELOCKS
             }
             else {
               if(rawblk_in == out->signal_lock) {
@@ -189,6 +208,7 @@ void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
               }
               free(blockgrid_in[blocki][blockj][blockk]);
             }
+#endif
           }
         }
       }
@@ -201,7 +221,11 @@ void _spray_ndblock_ompreduce(spray_ndblock_double *__restrict__ out,
       for(int blockj = 0; blockj<in->nblky; blockj++) {
         for(int blockk = 0; blockk<in->nblkz; blockk++) {
           double* rawblk_in = blockgrid_in[blocki][blockj][blockk];
-          if(rawblk_in && rawblk_in != out->signal_lock) {
+          if(rawblk_in
+#ifdef USELOCKS
+             && rawblk_in != out->signal_lock
+#endif
+            ) {
             double (*block)[BSIZE][BSIZE] = (double (*)[BSIZE][BSIZE])rawblk_in;
             int blockstart_i = blocki*BSIZE;
             int blockstart_j = blockj*BSIZE;
