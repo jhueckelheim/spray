@@ -8,8 +8,10 @@
 #define NK 64
 
 int main(int argc, char** argv) {
-  double arr[NI][NJ][NK];
-  double arr_ref[NI][NJ][NK];
+  double *arr_flat = (double*)malloc(NI*NJ*NK*sizeof(double));
+  double *arr_ref_flat = (double*)malloc(NI*NJ*NK*sizeof(double));
+  double (*arr)[NJ][NK] = (double (*)[NJ][NK])arr_flat;
+  double (*arr_ref)[NJ][NK] = (double (*)[NJ][NK])arr_ref_flat;
   for(int i=0;i<NI;i++) {
     for(int j=0;j<NJ;j++) {
       for(int k=0;k<NK;k++) {
@@ -59,5 +61,7 @@ int main(int argc, char** argv) {
     }
   }
   printf("Error: %lf\n",err);
+  free(arr_flat);
+  free(arr_ref_flat);
   return 0;
 }
