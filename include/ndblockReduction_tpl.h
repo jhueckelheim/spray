@@ -213,7 +213,7 @@ void TEMPLATE(_spray_ndblock_ompreduce,T)(TEMPLATE(spray_ndblock,T) *__restrict_
               add the incoming block to the outgoing block and free the former.
               */
               #pragma omp simd aligned(rawblk_out, rawblk_in : ALIGNMENT)
-              for(int i=0;i<in->nblkxyz;i++) {
+              for(int i=0;i<BSIZEND;i++) {
                 rawblk_out[i] += rawblk_in[i];
               }
               free(rawblk_in);
