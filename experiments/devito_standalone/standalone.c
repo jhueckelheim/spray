@@ -85,10 +85,13 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
 
     /* End section0 */
     /* Begin section1 */
-
+#ifdef SPRAY
     spray_ndblock_float sp_arr;
     spray_ndblock_init_float(&sp_arr, &(u[t2][0][0][0]), 893, 893, 299);
-#pragma omp parallel for reduction(+ : sp_arr)
+  #pragma omp parallel for reduction(+ : sp_arr)
+#else
+  #pragma omp parallel for
+#endif
     for (int p_src = p_src_m; p_src <= p_src_M; p_src += 1) {
       for (int rx = rx_m; rx <= rx_M; rx += 1) {
         for (int ry = ry_m; ry <= ry_M; ry += 1) {
@@ -101,8 +104,12 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
                         src_interpolation_coeffs[p_src][0][rx] *
                         src_interpolation_coeffs[p_src][1][ry] *
                         src_interpolation_coeffs[p_src][2][rz];
-
-            spray_ndblock_increment_float(&sp_arr, x, y, z, mag);
+            #ifdef SPRAY
+              spray_ndblock_increment_float(&sp_arr, x, y, z, mag);
+            #else
+              #pragma omp atomic update
+              u[t2][x][y][z] += mag;
+            #endif
           }
         }
       }
@@ -186,11 +193,14 @@ void bf0(float *damp_vec, const float dt, float *u_vec, float *vp_vec,
   float(*u)[893][893][299] = (float(*)[893][893][299])u_vec;
   float(*vp)[893][299] = (float(*)[893][299])vp_vec;
   float(*damp)[893][299] = (float(*)[893][299])damp_vec;
+  #pragma omp parallel
+  {
+  #pragma omp for collapse(2) schedule(dynamic,1)
   for (int x0_blk0 = x_m; x0_blk0 <= x_M; x0_blk0 += x0_blk0_size) {
     for (int y0_blk0 = y_m; y0_blk0 <= y_M; y0_blk0 += y0_blk0_size) {
       for (int x = x0_blk0; x <= x0_blk0 + x0_blk0_size - 1; x += 1) {
         for (int y = y0_blk0; y <= y0_blk0 + y0_blk0_size - 1; y += 1) {
-#pragma omp simd aligned(damp, u, vp : 16)
+          #pragma omp simd aligned(damp, u, vp : 16)
           for (int z = z_m; z <= z_M; z += 1) {
             float r2 = 1.0F / dt;
             float r1 = 1.0F / (dt * dt);
@@ -219,6 +229,7 @@ void bf0(float *damp_vec, const float dt, float *u_vec, float *vp_vec,
       }
     }
   }
+  }
 }
 
 void readfile(void *ptr, const char *name, const char *flags, size_t size,
@@ -231,6 +242,16 @@ void readfile(void *ptr, const char *name, const char *flags, size_t size,
     printf("Read only %lu instead of %lu items from %s\n", read_nmemb, nmemb,
            name);
   }
+}
+
+float norm(float *array, long length) {
+    double sum = 0.0;
+
+    for(long i=0; i<length; i++) {
+        sum += array[i]*array[i];
+    }
+
+    return (float) sqrt(sum);
 }
 
 int main() {
@@ -256,7 +277,7 @@ Allocating memory for src_interpolation_coeffs(737, 3, 64)*/
 
   readfile(src, "src.bin", "rb", sizeof(*src), 4 * 737);
 
-  readfile(damp, "damp.bin", "rb", sizeof(*damp), 893 * 893 * 299);
+  readfile(damp, "damp.bin", "rb", sizeof(*damp), 883 * 883 * 289);
 
   readfile(src_gridpoints, "src_gridpoints.bin", "rb", sizeof(*src_gridpoints),
            737 * 3);
@@ -296,7 +317,8 @@ Allocating memory for src_interpolation_coeffs(737, 3, 64)*/
           src_interpolation_coeffs, u, vp, x_M, x_m, y_M, y_m, z_M, z_m,
           p_rec_M, p_rec_m, p_src_M, p_src_m, rx_M, rx_m, ry_M, ry_m, rz_M,
           rz_m, time_M, time_m, x0_blk0_size, y0_blk0_size);
-
+  float l2 = norm(u, 3 * 893 * 893 * 299);
+  printf("Norm of u: %f", l2);
   free(rec);
   free(rec_coords);
   free(src);
