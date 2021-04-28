@@ -5,7 +5,7 @@
 #include "templates.h"
 
 #define ALIGNMENT 64
-#define BSIZE 4
+#define BSIZE 16
 #define BSIZEND BSIZE*BSIZE*BSIZE
 
 typedef struct {
@@ -191,61 +191,56 @@ void TEMPLATE(_spray_ndblock_ompreduce,T)(TEMPLATE(spray_ndblock,T) *__restrict_
         for(int blockk = 0; blockk<in->nblkz; blockk++) {
           T* rawblk_in = blockgrid_in[blocki][blockj][blockk];
           T* rawblk_out = blockgrid_out[blocki][blockj][blockk];
+
+	  /*
+	  If the incoming block is NULL, or is just a lock into the original
+	  array, we do not need to do anything.
+	  */
+	  if(!rawblk_in)
+            continue;
+#ifdef USELOCKS
+	  if(rawblk_in == out->signal_lock)
+	    continue;
+#endif
+
           if(!rawblk_out) {
             /*
-            If the `out` object does not have this block, we simply hand over the
-            block from `in` to `out`. It does not matter if `in` has this block,
-            because if it doesn't, this will simply copy over a NULL pointer.
+            If the `out` object does not have this block, we simply hand over
+            this block from `in` to `out`.
             */
             blockgrid_out[blocki][blockj][blockk] = rawblk_in;
+	    continue;
           }
-          else if (rawblk_in) {
+
+          /*
+          If we get here, it means the `in` and `out` object both have data
+          for this block. We now must distinguish between privatized blocks
+          or locks into the original data array.
+          */
+#ifdef USELOCKS
+          if(rawblk_out != out->signal_lock) {
+#endif
             /*
-            If we get here, it means the `in` and `out` object both have data
-            for this block. We now must distinguish between privatized blocks
-            or locks into the original data array.
+            In this case, both `in` and `out` hold a privatized block. We
+            add the incoming block to the outgoing block and free the former.
             */
-#ifdef USELOCKS
-            if(rawblk_in != out->signal_lock && rawblk_out != out->signal_lock) {
-#endif
-              /*
-              In this case, both `in` and `out` hold a privatized block. We
-              add the incoming block to the outgoing block and free the former.
-              */
-              #pragma omp simd aligned(rawblk_out, rawblk_in : ALIGNMENT)
-              for(int i=0;i<BSIZEND;i++) {
-                rawblk_out[i] += rawblk_in[i];
-              }
-              free(rawblk_in);
-#ifdef USELOCKS
+            #pragma omp simd aligned(rawblk_out, rawblk_in : ALIGNMENT)
+            for(int i=0;i<BSIZEND;i++) {
+              rawblk_out[i] += rawblk_in[i];
             }
-            else {
-              /*
-              In this case, exactly one of the objects has a lock into the
-              original array (we explicitly tested that at least one has it,
-              but they can't both have it, since it is a lock!). The other
-              object must hold a privatized block.
-              */
-              if(rawblk_in == out->signal_lock) {
-                /*
-                We want the outgoing object to have the lock. If the incoming
-                object had it, we swap the data pointers of `in` and `out` so
-                that `out` will hold the lock and `in` will hold the privatized
-                block.
-                */
-                blockgrid_in[blocki][blockj][blockk] = rawblk_out;
-                blockgrid_out[blocki][blockj][blockk] = out->signal_lock;
-              }
-              /*
-              When we get here, we know that `out` holds a lock to this block
-              in the original output array, and `in` has a pointer to a private
-              block. We add the values from the private block into the original
-              array, then free the private block.
-              */
-              TEMPLATE(_merge_block_into_orig,T)(blocki,blockj,blockk,rawblk_in,out);
-            }
-#endif
+            free(rawblk_in);
+#ifdef USELOCKS
           }
+          else {
+            /*
+            When we get here, we know that `out` holds a lock to this block
+            in the original output array, and `in` has a pointer to a private
+            block. We add the values from the private block into the original
+            array, then free the private block.
+            */
+            TEMPLATE(_merge_block_into_orig,T)(blocki,blockj,blockk,rawblk_in,out);
+          }
+#endif
         }
       }
     }
