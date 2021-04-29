@@ -5,7 +5,9 @@
 #include "templates.h"
 
 #define ALIGNMENT 64
+#ifndef BSIZE
 #define BSIZE 16
+#endif
 #define BSIZEND BSIZE*BSIZE*BSIZE
 
 typedef struct {

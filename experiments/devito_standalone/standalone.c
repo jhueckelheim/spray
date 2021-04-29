@@ -85,6 +85,7 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
 
     /* End section0 */
     /* Begin section1 */
+    double timer = omp_get_wtime();
 #ifdef SPRAY
     spray_ndblock_float sp_arr;
     spray_ndblock_init_float(&sp_arr, &(u[t2][0][0][0]), 893, 893, 299);
@@ -114,6 +115,16 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
         }
       }
     }
+    timer = omp_get_wtime() - timer;
+#ifdef SPRAY
+    #ifdef USELOCKS
+        printf("SRC TIME %lf (spray_uselocks bsize %d)\n",timer, BSIZE);
+    #else
+        printf("SRC TIME %lf (spray bsize %d)\n",timer, BSIZE);
+    #endif
+#else
+    printf("SRC TIME %lf (orig)\n",timer);
+#endif
 
     /* End section1 */
     /* Begin section2 */
@@ -318,7 +329,7 @@ Allocating memory for src_interpolation_coeffs(737, 3, 64)*/
           p_rec_M, p_rec_m, p_src_M, p_src_m, rx_M, rx_m, ry_M, ry_m, rz_M,
           rz_m, time_M, time_m, x0_blk0_size, y0_blk0_size);
   float l2 = norm(u, 3 * 893 * 893 * 299);
-  printf("Norm of u: %f", l2);
+  printf("Norm of u: %f\n", l2);
   free(rec);
   free(rec_coords);
   free(src);
