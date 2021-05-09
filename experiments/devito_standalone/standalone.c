@@ -2,6 +2,7 @@
 
 #include "math.h"
 #include "ndblockReduction.h"
+#include "dynamicKeeperReduction.h"
 #include "pmmintrin.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -86,12 +87,35 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
     /* End section0 */
     /* Begin section1 */
     double timer = omp_get_wtime();
-#ifdef SPRAY
+#ifdef SPRAY_NDBLOCK
     spray_ndblock_float sp_arr;
     spray_ndblock_init_float(&sp_arr, &(u[t2][0][0][0]), 893, 893, 299);
   #pragma omp parallel for reduction(+ : sp_arr)
 #else
+#ifdef SPRAY_KEEPER
+    int stencilsize = (rx_M-rx_m+1) * (ry_M-ry_m+1) * (rz_M-rz_m+1);
+    int overlap = stencilsize;
+    int tripcount = p_src_M - p_src_m + 1;
+    ownership_sequence* ownerseqs = (ownership_sequence*)malloc(omp_get_max_threads()*sizeof(ownership_sequence));
+    ownerseqs[0].owner_start = (int*)malloc(2*sizeof(int));
+    ownerseqs[0].owner = (int*)malloc(1*sizeof(int));
+    ownerseqs[0].owner_start[0] = 0;
+    ownerseqs[0].owner_start[1] = tripcount*stencilsize;
+    ownerseqs[0].owner[0] = 0; 
+    for(int i=1;i<omp_get_max_threads();i++) {
+      ownerseqs[i].owner_start = (int*)malloc(3*sizeof(int));
+      ownerseqs[i].owner = (int*)malloc(2*sizeof(int));
+      ownerseqs[i].owner_start[0] = 0;
+      ownerseqs[i].owner_start[1] = overlap;
+      ownerseqs[i].owner_start[2] = tripcount*stencilsize;
+      ownerseqs[i].owner[0] = i-1;
+      ownerseqs[i].owner[1] = i; 
+    }
+    spray_keeper_float sp_arr;
+    spray_keeper_init_float(&sp_arr, &(u[t2][0][0][0]), ownerseqs);
+#else
   #pragma omp parallel for
+#endif
 #endif
     for (int p_src = p_src_m; p_src <= p_src_M; p_src += 1) {
       for (int rx = rx_m; rx <= rx_M; rx += 1) {
@@ -116,14 +140,18 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
       }
     }
     timer = omp_get_wtime() - timer;
-#ifdef SPRAY
+#ifdef SPRAY_NDBLOCKS
     #ifdef USELOCKS
         printf("SRC TIME %lf (spray_uselocks bsize %d)\n",timer, BSIZE);
     #else
         printf("SRC TIME %lf (spray bsize %d)\n",timer, BSIZE);
     #endif
 #else
+#ifdef SPRAY_KEEPER
+    printf("SRC TIME %lf (keeper)\n",timer);
+#else
     printf("SRC TIME %lf (orig)\n",timer);
+#endif
 #endif
 
     /* End section1 */
