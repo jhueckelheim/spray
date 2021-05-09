@@ -129,11 +129,15 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
                         src_interpolation_coeffs[p_src][0][rx] *
                         src_interpolation_coeffs[p_src][1][ry] *
                         src_interpolation_coeffs[p_src][2][rz];
-            #ifdef SPRAY
+            #ifdef SPRAY_NDBLOCK
               spray_ndblock_increment_float(&sp_arr, x, y, z, mag);
             #else
+	    #ifdef SPRAY_KEEPER
+              spray_keeper_increment_float(&sp_arr, x*893*893+y*893+z, mag);
+	    #else
               #pragma omp atomic update
               u[t2][x][y][z] += mag;
+            #endif
             #endif
           }
         }

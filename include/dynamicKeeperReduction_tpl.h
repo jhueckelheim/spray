@@ -62,8 +62,10 @@ void TEMPLATE(spray_keeper_increment,T)(TEMPLATE(spray_keeper,T) *obj, int idx, 
   int src = obj->mythreadnum;
   if(tgt == src) {
     obj->content[idx] += val;
+    //printf("in-place %d on tid %d\n",idx,src);
   }
   else {
+    //printf("enqueue %d from tid %d to tid %d\n",idx,src,tgt);
     TEMPLATE(_spray_updlist,T) *list = &(obj->updateLists[tgt*obj->numthreads+src]);
     if(! list->lastchunk) {
       TEMPLATE(_spray_updlist_init,T)(list);
