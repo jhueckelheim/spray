@@ -9,6 +9,9 @@
 #include "string.h"
 #include "sys/time.h"
 #include "xmmintrin.h"
+#include <assert.h>
+
+int Hits, Misses;
 
 struct dataobj {
   void *restrict data;
@@ -94,37 +97,58 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
 #else
 #ifdef SPRAY_KEEPER
     int NOWN = 1024;
-    int* owner_cas = (int*)malloc(893*sizeof(int));
-    for(int i=0; i<893; i++) owner_cas[i] = -1;
-    ownership_sequence* ownerseqs = (ownership_sequence*)malloc(omp_get_max_threads()*sizeof(ownership_sequence));
-    for(int i=0;i<omp_get_max_threads();i++) {
-      ownerseqs[i].owner_start = (int*)malloc((NOWN+1)*sizeof(int));
-      ownerseqs[i].owner = (int*)malloc(NOWN*sizeof(int));
-    }
-    int lastowner = -1;
-    int accesscounter = 0;
-    int chunkcounter = 0;
-    #pragma omp parallel for firstprivate(lastowner,accesscounter,chunkcounter)
-    for (int p_src = p_src_m; p_src <= p_src_M; p_src += 1) {
-      for (int rx = rx_m; rx <= rx_M; rx += 1) {
-        int x = (int)(rx + src_gridpoints[p_src][0]) + 6;
-        int owner =  __sync_val_compare_and_swap (&(owner_cas[x]), -1, omp_get_thread_num());
-        if(owner == -1) owner = omp_get_thread_num();
-        if(owner != lastowner) {
-          ownerseqs[omp_get_thread_num()].owner[chunkcounter] = owner;
-          ownerseqs[omp_get_thread_num()].owner_start[chunkcounter] = accesscounter;
-	  chunkcounter++;
-	  lastowner = owner;
+    int* owner_array = (int*)malloc(893*sizeof(int));
+    printf("owner %p\n", owner_array);
+    int nthreads = omp_get_max_threads();
+    int *bins = (int*) calloc(893 * nthreads , sizeof(int));
+    /*memset(bins, 0, 893 * omp_get_max_threads() * sizeof(int));*/
+    #pragma omp parallel default(firstprivate)
+    {
+      int tid = omp_get_thread_num();
+      #pragma omp for
+      for (int p_src = p_src_m; p_src <= p_src_M; p_src += 1) {
+        for (int rx = rx_m; rx <= rx_M; rx += 1) {
+          int x = (int)(rx + src_gridpoints[p_src][0]) + 6;
+          ++bins[x * nthreads + tid];
+#if 0
+          int owner =  __sync_val_compare_and_swap (&(owner_cas[x]), -1, tid);
+          if(owner == -1) owner = tid;
+          if(owner != lastowner) {
+            ownerseqs[tid].owner[chunkcounter] = owner;
+            ownerseqs[tid].owner_start[chunkcounter] = accesscounter;
+            chunkcounter++;
+            lastowner = owner;
+          }
+          accesscounter+=(ry_M-ry_m+1)*(rz_M-rz_m+1);
+          if(chunkcounter > NOWN) {printf("ERROR"); exit(-1);}
+#endif
         }
-        accesscounter+=(ry_M-ry_m+1)*(rz_M-rz_m+1);
-        if(chunkcounter > NOWN) {printf("ERROR"); exit(-1);}
       }
     }
+    #pragma omp parallel for default(firstprivate)
+    for (int x = 0; x < 893; ++x) {
+      int max = -1, maxt = -1;
+      for (int t = 0; t < nthreads; ++t) {
+        if (max >= bins[x * nthreads + t])
+          continue;
+        max = bins[x * nthreads + t];
+        maxt = t;
+      }
+      assert(maxt >= 0 && maxt < nthreads);
+      owner_array[x] = maxt;
+      /*if (owner_cas[i] == -1 || owner_cas[i] == maxt || bins[i][owner_cas[i]] == max)*/
+        /*continue;*/
+      /*printf("x: %i has owner T%i with %i accesses but thread T%i has %i accesses\n", i, owner_cas[i], bins[i][owner_cas[i]], maxt, max);*/
+    }
+    /*for (int i = 0; i < 40; ++i) {*/
+      /*printf("%6i : %12i : %3i ::: ", i, ownerseqs[0].owner_start[i+1] - ownerseqs[0].owner_start[i], ownerseqs[0].owner[i]);*/
+      /*printf("%6i : %12i : %3i\n", i, ownerseqs[1].owner_start[i+1] -  ownerseqs[1].owner_start[i], ownerseqs[1].owner[i]);*/
+    /*}*/
     timer = omp_get_wtime() - timer;
     printf("INSPECTOR TIME %lf (keeper)\n",timer);
     timer = omp_get_wtime();
     spray_keeper_float sp_arr;
-    spray_keeper_init_float(&sp_arr, &(u[t2][0][0][0]), ownerseqs);
+    spray_keeper_init_float(&sp_arr, &(u[t2][0][0][0]), owner_array);
     #pragma omp parallel for reduction(+ : sp_arr)
 #else
   #pragma omp parallel for
@@ -146,7 +170,7 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
               spray_ndblock_increment_float(&sp_arr, x, y, z, mag);
             #else
 	    #ifdef SPRAY_KEEPER
-              spray_keeper_increment_float(&sp_arr, x*893*299+y*299+z, mag);
+              spray_keeper_increment_float(&sp_arr, x, x*893*299+y*299+z, mag);
 	    #else
               #pragma omp atomic update
               u[t2][x][y][z] += mag;
@@ -386,5 +410,6 @@ Allocating memory for src_interpolation_coeffs(737, 3, 64)*/
   free(u);
   free(vp);
   free(damp);
+  printf("Hits %i, Misses %i\n", Hits, Misses);
   return 0;
 }

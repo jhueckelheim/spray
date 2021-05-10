@@ -5,41 +5,28 @@
 #include "templates.h"
 #include "updateChunkList_tpl.h"
 
+extern int Hits, Misses;
+
 typedef struct {
   TEMPLATE(_spray_updlist,T) *updateLists;
   T *content;
-  ownership_sequence *ownerseqs;
-  int* owner_start;
-  int* owners;
-  int accesscounter;
-  int accesschunkcounter;
-  int mythreadnum;
+  int* owner_array;
   int numthreads;
+  int mythreadnum;
 } TEMPLATE(spray_keeper,T);
 
-void TEMPLATE(spray_keeper_init,T)(TEMPLATE(spray_keeper,T)* init, T *orig,  ownership_sequence *ownerseqs) {
+void TEMPLATE(spray_keeper_init,T)(TEMPLATE(spray_keeper,T)* init, T *orig,  int *owner_array) {
+  init->updateLists = (TEMPLATE(_spray_updlist,T)*)calloc(init->numthreads*init->numthreads,sizeof(TEMPLATE(_spray_updlist,T)));
   init->content = orig;
-  init->ownerseqs = ownerseqs;
+  init->owner_array = owner_array;
   init->numthreads = omp_get_max_threads();
-  init->updateLists = (TEMPLATE(_spray_updlist,T)*)malloc(init->numthreads*init->numthreads*sizeof(TEMPLATE(_spray_updlist,T)));
-  for(int i=0; i<init->numthreads; i++) {
-    for(int j=0; j<init->numthreads; j++) {
-      init->updateLists[i*init->numthreads+j].lastchunk = NULL;
-    }
-  }
+  init->mythreadnum = omp_get_thread_num();
 }
 
 void TEMPLATE(_spray_keeper_ompinit,T)(TEMPLATE(spray_keeper,T) *__restrict__ init,
                             TEMPLATE(spray_keeper,T) *__restrict__ orig) {
-  init->content = orig->content;
-  init->owner_start = orig->owner_start;
-  init->owners = orig->owners;
-  init->numthreads = orig->numthreads;
-  init->updateLists = orig->updateLists;
-  init->accesscounter = 0;
-  init->accesschunkcounter = 0;
+  *init = *orig;
   init->mythreadnum = omp_get_thread_num();
-  init->ownerseqs = &(orig->ownerseqs[init->mythreadnum]);
 }
 
 void TEMPLATE(spray_keeper_finalize,T)(TEMPLATE(spray_keeper,T) *__restrict__ obj) {
@@ -57,24 +44,24 @@ void TEMPLATE(spray_keeper_finalize,T)(TEMPLATE(spray_keeper,T) *__restrict__ ob
   free(obj->updateLists);
 }
 
-void TEMPLATE(spray_keeper_increment,T)(TEMPLATE(spray_keeper,T) *obj, int idx, T val) {
-  int tgt = obj->ownerseqs->owner[obj->accesschunkcounter];
+void TEMPLATE(spray_keeper_increment,T)(TEMPLATE(spray_keeper,T) *obj, int x, int idx, T val) {
+  int tgt = obj->owner_array[x];
   int src = obj->mythreadnum;
   if(tgt == src) {
+    //#pragma omp atomic
+    //++Hits;
     obj->content[idx] += val;
     //printf("in-place %d on tid %d\n",idx,src);
   }
   else {
+    //#pragma omp atomic
+    //++Misses;
     //printf("enqueue %d from tid %d to tid %d\n",idx,src,tgt);
     TEMPLATE(_spray_updlist,T) *list = &(obj->updateLists[tgt*obj->numthreads+src]);
     if(! list->lastchunk) {
       TEMPLATE(_spray_updlist_init,T)(list);
     }
     TEMPLATE(_spray_updlist_append,T)(list, idx, val);
-  }
-  obj->accesscounter++;
-  if(obj->ownerseqs->owner_start[obj->accesschunkcounter+1] == obj->accesscounter) {
-    obj->accesschunkcounter++;
   }
 }
 
