@@ -1,7 +1,7 @@
 #include "templates.h"
 #include <stdlib.h>
 
-#define CHUNKLENGTH 8
+#define CHUNKLENGTH 1024
 typedef struct TEMPLATE(_spray_updchunk_struct,T) {
   int indices[CHUNKLENGTH];
   T content[CHUNKLENGTH];

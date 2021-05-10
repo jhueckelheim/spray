@@ -93,26 +93,39 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
   #pragma omp parallel for reduction(+ : sp_arr)
 #else
 #ifdef SPRAY_KEEPER
-    int stencilsize = (rx_M-rx_m+1) * (ry_M-ry_m+1) * (rz_M-rz_m+1);
-    int overlap = stencilsize;
-    int tripcount = p_src_M - p_src_m + 1;
+    int NOWN = 1024;
+    int* owner_cas = (int*)malloc(893*sizeof(int));
+    for(int i=0; i<893; i++) owner_cas[i] = -1;
     ownership_sequence* ownerseqs = (ownership_sequence*)malloc(omp_get_max_threads()*sizeof(ownership_sequence));
-    ownerseqs[0].owner_start = (int*)malloc(2*sizeof(int));
-    ownerseqs[0].owner = (int*)malloc(1*sizeof(int));
-    ownerseqs[0].owner_start[0] = 0;
-    ownerseqs[0].owner_start[1] = tripcount*stencilsize;
-    ownerseqs[0].owner[0] = 0; 
-    for(int i=1;i<omp_get_max_threads();i++) {
-      ownerseqs[i].owner_start = (int*)malloc(3*sizeof(int));
-      ownerseqs[i].owner = (int*)malloc(2*sizeof(int));
-      ownerseqs[i].owner_start[0] = 0;
-      ownerseqs[i].owner_start[1] = overlap;
-      ownerseqs[i].owner_start[2] = tripcount*stencilsize;
-      ownerseqs[i].owner[0] = i-1;
-      ownerseqs[i].owner[1] = i; 
+    for(int i=0;i<omp_get_max_threads();i++) {
+      ownerseqs[i].owner_start = (int*)malloc((NOWN+1)*sizeof(int));
+      ownerseqs[i].owner = (int*)malloc(NOWN*sizeof(int));
     }
+    int lastowner = -1;
+    int accesscounter = 0;
+    int chunkcounter = 0;
+    #pragma omp parallel for firstprivate(lastowner,accesscounter,chunkcounter)
+    for (int p_src = p_src_m; p_src <= p_src_M; p_src += 1) {
+      for (int rx = rx_m; rx <= rx_M; rx += 1) {
+        int x = (int)(rx + src_gridpoints[p_src][0]) + 6;
+        int owner =  __sync_val_compare_and_swap (&(owner_cas[x]), -1, omp_get_thread_num());
+        if(owner == -1) owner = omp_get_thread_num();
+        if(owner != lastowner) {
+          ownerseqs[omp_get_thread_num()].owner[chunkcounter] = owner;
+          ownerseqs[omp_get_thread_num()].owner_start[chunkcounter] = accesscounter;
+	  chunkcounter++;
+	  lastowner = owner;
+        }
+        accesscounter+=(ry_M-ry_m+1)*(rz_M-rz_m+1);
+        if(chunkcounter > NOWN) {printf("ERROR"); exit(-1);}
+      }
+    }
+    timer = omp_get_wtime() - timer;
+    printf("INSPECTOR TIME %lf (keeper)\n",timer);
+    timer = omp_get_wtime();
     spray_keeper_float sp_arr;
     spray_keeper_init_float(&sp_arr, &(u[t2][0][0][0]), ownerseqs);
+    #pragma omp parallel for reduction(+ : sp_arr)
 #else
   #pragma omp parallel for
 #endif
@@ -133,7 +146,7 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
               spray_ndblock_increment_float(&sp_arr, x, y, z, mag);
             #else
 	    #ifdef SPRAY_KEEPER
-              spray_keeper_increment_float(&sp_arr, x*893*893+y*893+z, mag);
+              spray_keeper_increment_float(&sp_arr, x*893*299+y*299+z, mag);
 	    #else
               #pragma omp atomic update
               u[t2][x][y][z] += mag;
@@ -143,6 +156,9 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
         }
       }
     }
+#ifdef SPRAY_KEEPER
+    spray_keeper_finalize_float(&sp_arr);
+#endif
     timer = omp_get_wtime() - timer;
 #ifdef SPRAY_NDBLOCKS
     #ifdef USELOCKS
