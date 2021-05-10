@@ -97,11 +97,9 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
 #else
 #ifdef SPRAY_KEEPER
     int NOWN = 1024;
-    int* owner_array = (int*)malloc(893*sizeof(int));
-    printf("owner %p\n", owner_array);
+    Bitarray BC = bitarray_create(893);
     int nthreads = omp_get_max_threads();
     int *bins = (int*) calloc(893 * nthreads , sizeof(int));
-    /*memset(bins, 0, 893 * omp_get_max_threads() * sizeof(int));*/
     #pragma omp parallel default(firstprivate)
     {
       int tid = omp_get_thread_num();
@@ -110,45 +108,26 @@ int Forward(float *damp_vec, const float dt, const float o_x, const float o_y,
         for (int rx = rx_m; rx <= rx_M; rx += 1) {
           int x = (int)(rx + src_gridpoints[p_src][0]) + 6;
           ++bins[x * nthreads + tid];
-#if 0
-          int owner =  __sync_val_compare_and_swap (&(owner_cas[x]), -1, tid);
-          if(owner == -1) owner = tid;
-          if(owner != lastowner) {
-            ownerseqs[tid].owner[chunkcounter] = owner;
-            ownerseqs[tid].owner_start[chunkcounter] = accesscounter;
-            chunkcounter++;
-            lastowner = owner;
-          }
-          accesscounter+=(ry_M-ry_m+1)*(rz_M-rz_m+1);
-          if(chunkcounter > NOWN) {printf("ERROR"); exit(-1);}
-#endif
         }
       }
     }
     #pragma omp parallel for default(firstprivate)
     for (int x = 0; x < 893; ++x) {
-      int max = -1, maxt = -1;
+      int nt = 0;
       for (int t = 0; t < nthreads; ++t) {
-        if (max >= bins[x * nthreads + t])
-          continue;
-        max = bins[x * nthreads + t];
-        maxt = t;
+        if (bins[x * nthreads + t]) {
+          if (++nt > 1) {
+            bitarray_set(BC, x);
+            break;
+          }
+        }
       }
-      assert(maxt >= 0 && maxt < nthreads);
-      owner_array[x] = maxt;
-      /*if (owner_cas[i] == -1 || owner_cas[i] == maxt || bins[i][owner_cas[i]] == max)*/
-        /*continue;*/
-      /*printf("x: %i has owner T%i with %i accesses but thread T%i has %i accesses\n", i, owner_cas[i], bins[i][owner_cas[i]], maxt, max);*/
     }
-    /*for (int i = 0; i < 40; ++i) {*/
-      /*printf("%6i : %12i : %3i ::: ", i, ownerseqs[0].owner_start[i+1] - ownerseqs[0].owner_start[i], ownerseqs[0].owner[i]);*/
-      /*printf("%6i : %12i : %3i\n", i, ownerseqs[1].owner_start[i+1] -  ownerseqs[1].owner_start[i], ownerseqs[1].owner[i]);*/
-    /*}*/
     timer = omp_get_wtime() - timer;
     printf("INSPECTOR TIME %lf (keeper)\n",timer);
     timer = omp_get_wtime();
     spray_keeper_float sp_arr;
-    spray_keeper_init_float(&sp_arr, &(u[t2][0][0][0]), owner_array);
+    spray_keeper_init_float(&sp_arr, &(u[t2][0][0][0]), BC);
     #pragma omp parallel for reduction(+ : sp_arr)
 #else
   #pragma omp parallel for
